@@ -20,6 +20,21 @@ class AgentResult:
 class BaseAgent(ABC):
     """Abstract base class for all agent adapters."""
 
+    def __init__(
+        self,
+        resume_mode: str = "none",
+        session_id: str | None = None,
+    ) -> None:
+        """Initialise a BaseAgent.
+
+        Args:
+            resume_mode: Resume strategy. One of ``'none'``, ``'continue'``, or
+                ``'resume'``.
+            session_id: Session identifier used when *resume_mode* is ``'resume'``.
+        """
+        self.resume_mode: str = resume_mode
+        self.session_id: str | None = session_id
+
     @abstractmethod
     async def execute(
         self,

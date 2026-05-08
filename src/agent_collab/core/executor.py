@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import time
 from dataclasses import dataclass, field
-
+import os
 from agent_collab.agents.base import AgentResult, BaseAgent
-from agent_collab.core.workflow import AgentConfig, StrategyConfig, TaskConfig
+from agent_collab.core.workflow import AgentConfig, StrategyConfig, TaskConfig, WorkflowParser
 from agent_collab.locks.file_lock import FileLockManager
 
 
@@ -27,16 +29,28 @@ class TaskExecutor:
         agent_configs: dict[str, AgentConfig],
         strategy: StrategyConfig,
         lock_manager: FileLockManager | None = None,
+        variables: dict[str, str] | None = None,
     ) -> None:
         self.agents = agents
         self.agent_configs = agent_configs
         self.strategy = strategy
         self.lock_manager = lock_manager or FileLockManager()
+        self.variables = variables or {}
+        self.execution_log: list[dict[str, object]] = []
+        self.task_outputs: dict[str, str] = {}
 
     async def execute_task(self, task: TaskConfig) -> AgentResult:
         """Execute a single task with retry logic."""
         agent_cfg = self.agent_configs[task.agent]
         agent = self.agents[task.agent]
+
+        # Resolve variables in prompt: workflow variables + os.environ
+        merged: dict[str, str] = {**os.environ, **self.variables}
+        resolved_prompt = WorkflowParser.resolve_variables(task.prompt, merged)
+        # Resolve ${task_id.output} references from upstream tasks
+        resolved_prompt = WorkflowParser.resolve_task_outputs(
+            resolved_prompt, self.task_outputs
+        )
 
         # Acquire locks for output files
         locked: list[str] = []
@@ -53,13 +67,25 @@ class TaskExecutor:
                 )
 
         try:
+            start = time.monotonic()
             result = await self._run_with_retries(
                 agent=agent,
-                prompt=task.prompt,
+                prompt=resolved_prompt,
                 workdir=agent_cfg.workdir,
                 allowed_tools=agent_cfg.allowed_tools,
                 timeout=self.strategy.timeout_per_task,
             )
+            duration = time.monotonic() - start
+            # Store output for downstream task resolution
+            if result.success:
+                self.task_outputs[task.id] = result.output
+            self.execution_log.append({
+                "task_id": task.id,
+                "agent": task.agent,
+                "status": "success" if result.success else "failed",
+                "duration": round(duration, 3),
+                "output_summary": result.output[:200] if result.output else "",
+            })
             return result
         finally:
             for f in locked:
@@ -100,3 +126,16 @@ class TaskExecutor:
 
         results = await asyncio.gather(*(_run(t) for t in tasks))
         return dict(results)
+
+    def get_execution_log(self) -> list[dict[str, object]]:
+        """Return the full execution log recorded so far."""
+        return list(self.execution_log)
+
+    def export_log(self, path: str) -> None:
+        """Export the execution log to a JSON file.
+
+        Args:
+            path: Filesystem path where the JSON file will be written.
+        """
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(self.execution_log, f, indent=2, ensure_ascii=False)

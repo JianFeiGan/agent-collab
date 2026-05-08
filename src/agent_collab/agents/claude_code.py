@@ -29,6 +29,17 @@ class ClaudeCodeAgent(BaseAgent):
             "--permission-mode", "bypassPermissions",
             "--max-turns", "50",
         ]
+        if self.resume_mode == "continue":
+            cmd.append("--continue")
+        elif self.resume_mode == "resume":
+            if self.session_id is None:
+                elapsed = time.monotonic() - start
+                return AgentResult(
+                    success=False,
+                    output="resume_mode='resume' requires a session_id",
+                    duration_seconds=elapsed,
+                )
+            cmd.extend(["--resume", self.session_id])
         for tool in allowed_tools:
             cmd.extend(["--allowedTools", tool])
 

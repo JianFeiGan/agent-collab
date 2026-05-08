@@ -19,6 +19,7 @@ def _make_config(tasks_def: list[dict]) -> WorkflowConfig:
                 agent="worker",
                 prompt="",
                 depends_on=td.get("depends_on", []),
+                when=td.get("when"),
             )
         )
     return WorkflowConfig(name="test", agents=agents, tasks=tasks)
@@ -134,3 +135,104 @@ def test_complex_graph():
     assert set(order[0]) == {"a1", "b1"}
     assert set(order[1]) == {"a2", "b2"}
     assert order[2] == ["merge"]
+
+
+# ── when-conditional tasks ───────────────────────────────────────────
+
+
+def test_when_task_skipped():
+    """Task with unsatisfied when clause is excluded."""
+    config = _make_config([
+        {"id": "a"},
+        {"id": "b", "depends_on": ["a"], "when": "deploy"},
+    ])
+    scheduler = TaskScheduler(config.tasks, context={"ENV": "test"})
+    order = scheduler.get_execution_order()
+    all_ids = [tid for level in order for tid in level]
+    assert "a" in all_ids
+    assert "b" not in all_ids
+
+
+def test_when_task_runs_when_satisfied():
+    """Task with satisfied when clause is included."""
+    config = _make_config([
+        {"id": "a"},
+        {"id": "b", "depends_on": ["a"], "when": "deploy"},
+    ])
+    scheduler = TaskScheduler(config.tasks, context={"ENV": "deploy"})
+    order = scheduler.get_execution_order()
+    all_ids = [tid for level in order for tid in level]
+    assert "a" in all_ids
+    assert "b" in all_ids
+
+
+def test_when_none_always_runs():
+    """Task without when clause always runs."""
+    config = _make_config([
+        {"id": "a"},
+        {"id": "b", "depends_on": ["a"]},
+    ])
+    scheduler = TaskScheduler(config.tasks, context={"ENV": "whatever"})
+    order = scheduler.get_execution_order()
+    all_ids = [tid for level in order for tid in level]
+    assert "a" in all_ids
+    assert "b" in all_ids
+
+
+def test_skipped_task_does_not_block_downstream():
+    """A skipped conditional task doesn't block its dependents."""
+    config = _make_config([
+        {"id": "a"},
+        {"id": "b", "depends_on": ["a"], "when": "never"},
+        {"id": "c", "depends_on": ["b"]},
+    ])
+    scheduler = TaskScheduler(config.tasks, context={"ENV": "prod"})
+    order = scheduler.get_execution_order()
+    all_ids = [tid for level in order for tid in level]
+    assert "a" in all_ids
+    assert "b" not in all_ids
+    assert "c" in all_ids
+
+
+# ── Priority sorting ─────────────────────────────────────────────────
+
+
+def test_priority_higher_first():
+    """Higher priority tasks appear first within a parallel level."""
+    agents = {"worker": AgentConfig(type="claude-code")}
+    tasks = [
+        TaskConfig(id="low", agent="worker", prompt="", priority=0),
+        TaskConfig(id="mid", agent="worker", prompt="", priority=5),
+        TaskConfig(id="high", agent="worker", prompt="", priority=10),
+    ]
+    config = WorkflowConfig(name="test", agents=agents, tasks=tasks)
+    scheduler = TaskScheduler(config.tasks)
+    order = scheduler.get_execution_order()
+    assert len(order) == 1
+    assert order[0] == ["high", "mid", "low"]
+
+
+def test_priority_does_not_break_dependencies():
+    """Priority ordering respects dependency levels."""
+    agents = {"worker": AgentConfig(type="claude-code")}
+    tasks = [
+        TaskConfig(id="dep", agent="worker", prompt="", priority=0),
+        TaskConfig(id="a", agent="worker", prompt="", priority=10, depends_on=["dep"]),
+        TaskConfig(id="b", agent="worker", prompt="", priority=20, depends_on=["dep"]),
+    ]
+    config = WorkflowConfig(name="test", agents=agents, tasks=tasks)
+    scheduler = TaskScheduler(config.tasks)
+    order = scheduler.get_execution_order()
+    assert order[0] == ["dep"]
+    assert order[1] == ["b", "a"]  # b has higher priority than a
+
+
+# ── Cancel ───────────────────────────────────────────────────────────
+
+
+def test_cancel_all_returns_empty():
+    """After cancel_all(), get_execution_order returns an empty list."""
+    config = _make_config([{"id": "a"}, {"id": "b"}])
+    scheduler = TaskScheduler(config.tasks)
+    scheduler.cancel_all()
+    assert scheduler.get_execution_order() == []

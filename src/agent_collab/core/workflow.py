@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
+import os
+import re
 
 import yaml
 from pydantic import BaseModel, Field, model_validator
@@ -16,9 +18,11 @@ class TaskConfig(BaseModel):
     id: str
     agent: str
     prompt: str
+    priority: int = 0
     depends_on: list[str] = Field(default_factory=list)
     outputs: list[str] = Field(default_factory=list)
     merge_strategy: str | None = None
+    when: str | None = None
 
 
 class AgentConfig(BaseModel):
@@ -47,6 +51,8 @@ class WorkflowConfig(BaseModel):
     agents: dict[str, AgentConfig]
     tasks: list[TaskConfig]
     strategy: StrategyConfig = Field(default_factory=StrategyConfig)
+    variables: dict[str, str] = Field(default_factory=dict)
+    include: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_references(self) -> WorkflowConfig:
@@ -72,8 +78,46 @@ class WorkflowParser:
     """Parses and validates YAML workflow files."""
 
     @staticmethod
+    def resolve_variables(text: str, variables: dict[str, str]) -> str:
+        """Resolve ``${VAR}`` and ``${VAR:-default}`` placeholders in *text*.
+
+        The lookup order is: *variables* dict first, then ``os.environ``.
+        If a variable is not found and a default is provided after ``:-``,
+        the default is used.  Unresolved placeholders are left as-is.
+        """
+
+        def _replace(match: re.Match[str]) -> str:  # type: ignore[type-arg]
+            var_name = match.group(1)
+            if ":-" in var_name:
+                name, default = var_name.split(":-", 1)
+            else:
+                name, default = var_name, ""
+            value = variables.get(name, os.environ.get(name, ""))
+            if value:
+                return value
+            return default
+
+        return re.sub(r"\$\{([^}]+)\}", _replace, text)
+
+    @staticmethod
+    def resolve_task_outputs(text: str, outputs: dict[str, str]) -> str:
+        """Resolve ``${task_id.output}`` placeholders in *text*.
+
+        Each key in *outputs* is a task ID whose value is that task's
+        execution output string.  Unresolved placeholders are left as-is.
+        """
+        def _replace(match: re.Match[str]) -> str:  # type: ignore[type-arg]
+            task_id = match.group(1)
+            return outputs.get(task_id, match.group(0))
+
+        return re.sub(r"\$\{(\w+)\.output\}", _replace, text)
+
+    @staticmethod
     def parse(file_path: str | Path) -> WorkflowConfig:
         """Load a YAML file and return a validated WorkflowConfig.
+
+        Supports ``include`` — a list of YAML file paths whose tasks and
+        agents are merged into the main workflow.
 
         Raises:
             FileNotFoundError: If the file does not exist.
@@ -88,6 +132,23 @@ class WorkflowParser:
 
         if not isinstance(data, dict):
             raise ValueError(f"Invalid workflow file: {path}")
+
+        # Process includes: merge tasks and agents from referenced files
+        includes: list[str] = data.get("include", [])
+        for inc_path_str in includes:
+            inc_path = path.parent / inc_path_str
+            if not inc_path.exists():
+                raise FileNotFoundError(f"Included workflow file not found: {inc_path}")
+            with open(inc_path) as f:
+                inc_data: dict[str, Any] = yaml.safe_load(f)
+            if not isinstance(inc_data, dict):
+                raise ValueError(f"Invalid included workflow file: {inc_path}")
+            # Merge agents
+            if "agents" in inc_data:
+                data.setdefault("agents", {}).update(inc_data["agents"])
+            # Merge tasks
+            if "tasks" in inc_data:
+                data.setdefault("tasks", []).extend(inc_data["tasks"])
 
         config = WorkflowConfig.model_validate(data)
 

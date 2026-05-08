@@ -5,11 +5,11 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from agent_collab.agents.base import AgentResult, BaseAgent
 from agent_collab.agents.claude_code import ClaudeCodeAgent
 from agent_collab.agents.codex import CodexAgent
 from agent_collab.agents.aider import AiderAgent
+from agent_collab.agents.opencode import OpenCodeAgent
 
 
 # ---------------------------------------------------------------------------
@@ -35,6 +35,42 @@ class TestAgentResult:
         assert not r.success
         assert r.files_changed == ["a.py"]
         assert r.tokens_used == 100
+
+
+class TestBaseAgentInit:
+    def test_defaults(self) -> None:
+        """BaseAgent defaults to resume_mode='none' and session_id=None."""
+
+        class DummyAgent(BaseAgent):
+            async def execute(self, prompt, workdir, allowed_tools, timeout=600):  # type: ignore[override]
+                return AgentResult(success=True, output="")
+
+            def name(self) -> str:  # type: ignore[override]
+                return "dummy"
+
+            def is_available(self) -> bool:  # type: ignore[override]
+                return False
+
+        agent = DummyAgent()
+        assert agent.resume_mode == "none"
+        assert agent.session_id is None
+
+    def test_custom_resume(self) -> None:
+        """resume_mode and session_id can be set at construction time."""
+
+        class DummyAgent(BaseAgent):
+            async def execute(self, prompt, workdir, allowed_tools, timeout=600):  # type: ignore[override]
+                return AgentResult(success=True, output="")
+
+            def name(self) -> str:  # type: ignore[override]
+                return "dummy"
+
+            def is_available(self) -> bool:  # type: ignore[override]
+                return False
+
+        agent = DummyAgent(resume_mode="resume", session_id="abc-123")
+        assert agent.resume_mode == "resume"
+        assert agent.session_id == "abc-123"
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +139,80 @@ async def test_claude_code_cli_not_found(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 @pytest.mark.asyncio
+async def test_claude_code_resume_continue(monkeypatch: pytest.MonkeyPatch) -> None:
+    """resume_mode='continue' appends --continue to the CLI command."""
+    agent = ClaudeCodeAgent(resume_mode="continue")
+    fake_output = '{"result": "resumed"}'
+    captured_cmd: list[str] = []
+
+    async def fake_exec(*args, **kwargs):  # type: ignore[no-untyped-def]
+        captured_cmd.extend(args)
+        return _StubProcess(0, fake_output.encode())
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+    result = await agent.execute("continue task", ".", [])
+    assert result.success
+    assert "--continue" in captured_cmd
+
+
+@pytest.mark.asyncio
+async def test_claude_code_resume_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    """resume_mode='resume' appends --resume {session_id}."""
+    agent = ClaudeCodeAgent(resume_mode="resume", session_id="sess-42")
+    fake_output = '{"result": "resumed"}'
+    captured_cmd: list[str] = []
+
+    async def fake_exec(*args, **kwargs):  # type: ignore[no-untyped-def]
+        captured_cmd.extend(args)
+        return _StubProcess(0, fake_output.encode())
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+    result = await agent.execute("resume task", ".", [])
+    assert result.success
+    assert "--resume" in captured_cmd
+    assert "sess-42" in captured_cmd
+
+
+@pytest.mark.asyncio
+async def test_claude_code_resume_without_session_id() -> None:
+    """resume_mode='resume' without session_id returns error."""
+    agent = ClaudeCodeAgent(resume_mode="resume", session_id=None)
+    result = await agent.execute("resume task", ".", [])
+    assert not result.success
+    assert "session_id" in result.output
+
+
+@pytest.mark.asyncio
+async def test_opencode_execute_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    agent = OpenCodeAgent()
+
+    async def fake_exec(*args, **kwargs):  # type: ignore[no-untyped-def]
+        return _StubProcess(0, b"opencode output")
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+    result = await agent.execute("build it", ".", [])
+    assert result.success
+    assert "opencode output" in result.output
+
+
+@pytest.mark.asyncio
+async def test_opencode_cli_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
+    agent = OpenCodeAgent()
+
+    async def fake_exec(*args, **kwargs):  # type: ignore[no-untyped-def]
+        raise FileNotFoundError
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+    result = await agent.execute("build it", ".", [])
+    assert not result.success
+    assert "not found" in result.output
+
+
+@pytest.mark.asyncio
 async def test_codex_execute_success(monkeypatch: pytest.MonkeyPatch) -> None:
     agent = CodexAgent()
 
@@ -134,6 +244,7 @@ def test_agent_names() -> None:
     assert ClaudeCodeAgent().name() == "claude-code"
     assert CodexAgent().name() == "codex"
     assert AiderAgent().name() == "aider"
+    assert OpenCodeAgent().name() == "opencode"
 
 
 def test_is_available_depends_on_path(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -142,3 +253,4 @@ def test_is_available_depends_on_path(monkeypatch: pytest.MonkeyPatch) -> None:
     assert not ClaudeCodeAgent().is_available()
     assert not CodexAgent().is_available()
     assert not AiderAgent().is_available()
+    assert not OpenCodeAgent().is_available()
