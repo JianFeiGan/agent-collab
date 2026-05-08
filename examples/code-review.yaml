@@ -1,0 +1,52 @@
+name: code-review-pipeline
+description: Write code then review and fix issues automatically
+
+agents:
+  coder:
+    type: claude-code
+    model: sonnet
+    allowed_tools: [Read, Write, Edit, Bash]
+  reviewer:
+    type: claude-code
+    model: opus
+    allowed_tools: [Read]
+
+tasks:
+  - id: implement-feature
+    agent: coder
+    prompt: |
+      Implement a simple REST API with:
+      - FastAPI
+      - GET /items (list items with pagination)
+      - POST /items (create item)
+      - GET /items/{id} (get item by id)
+      - DELETE /items/{id} (delete item)
+      Use in-memory storage (list) for simplicity.
+    outputs: [main.py]
+
+  - id: review-code
+    depends_on: [implement-feature]
+    agent: reviewer
+    prompt: |
+      Review the code in main.py for:
+      1. Bugs and logic errors
+      2. Missing error handling
+      3. API design issues
+      4. Performance concerns
+      List each issue with severity (critical/high/medium/low).
+    merge_strategy: comments
+
+  - id: fix-issues
+    depends_on: [review-code]
+    agent: coder
+    prompt: |
+      Read the review comments from the previous task.
+      Fix all critical and high severity issues.
+      For medium/low issues, fix only if straightforward.
+      Do not change the overall architecture.
+    outputs: [main.py]
+
+strategy:
+  max_parallel: 1
+  retry_on_failure: false
+  timeout_per_task: 300

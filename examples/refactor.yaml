@@ -1,0 +1,54 @@
+name: parallel-refactor
+description: Refactor different parts of a codebase in parallel
+
+agents:
+  module-a:
+    type: claude-code
+    model: sonnet
+    workdir: ./src/module_a
+    allowed_tools: [Read, Write, Edit]
+  module-b:
+    type: claude-code
+    model: sonnet
+    workdir: ./src/module_b
+    allowed_tools: [Read, Write, Edit]
+  integrator:
+    type: claude-code
+    model: sonnet
+    allowed_tools: [Read, Write, Edit, Bash]
+
+tasks:
+  - id: refactor-auth
+    agent: module-a
+    prompt: |
+      Refactor the authentication module:
+      - Extract token generation into separate functions
+      - Add type hints to all functions
+      - Add docstrings
+      - Split large functions into smaller ones
+    outputs: [src/module_a/auth.py]
+
+  - id: refactor-database
+    agent: module-b
+    prompt: |
+      Refactor the database module:
+      - Use connection pooling
+      - Add retry logic for failed queries
+      - Extract query builders into separate functions
+      - Add type hints and docstrings
+    outputs: [src/module_b/database.py]
+
+  - id: update-imports
+    depends_on: [refactor-auth, refactor-database]
+    agent: integrator
+    prompt: |
+      Update all import statements across the project
+      to reflect the refactored module structure.
+      Run tests to verify nothing is broken.
+    outputs: [src/]
+
+strategy:
+  max_parallel: 2
+  retry_on_failure: true
+  max_retries: 1
+  timeout_per_task: 480

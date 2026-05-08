@@ -1,0 +1,59 @@
+name: fullstack-webapp
+description: Build a fullstack web app with FastAPI backend and React frontend
+
+agents:
+  backend:
+    type: claude-code
+    model: sonnet
+    workdir: ./backend
+    allowed_tools: [Read, Write, Edit, Bash]
+  frontend:
+    type: claude-code
+    model: sonnet
+    workdir: ./frontend
+    allowed_tools: [Read, Write, Edit, Bash]
+  reviewer:
+    type: claude-code
+    model: opus
+    allowed_tools: [Read]
+
+tasks:
+  - id: setup-backend
+    agent: backend
+    prompt: |
+      Create a FastAPI project with:
+      - SQLAlchemy + SQLite database
+      - User model (id, name, email, created_at)
+      - CRUD endpoints for users
+      - Pydantic schemas for request/response
+      Include proper error handling and type hints.
+    outputs: [backend/]
+
+  - id: setup-frontend
+    agent: frontend
+    prompt: |
+      Create a React + TypeScript project with:
+      - Vite as build tool
+      - User list page with table view
+      - User create/edit form
+      - API client with fetch
+      Use modern React patterns (hooks, functional components).
+    outputs: [frontend/]
+
+  - id: review
+    depends_on: [setup-backend, setup-frontend]
+    agent: reviewer
+    prompt: |
+      Review both backend and frontend code for:
+      1. Security issues (SQL injection, XSS)
+      2. Error handling gaps
+      3. Type safety
+      4. Code quality
+      Provide a summary of findings.
+    merge_strategy: comments
+
+strategy:
+  max_parallel: 2
+  retry_on_failure: true
+  max_retries: 1
+  timeout_per_task: 600
