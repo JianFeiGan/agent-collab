@@ -6,7 +6,8 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-51%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-89%20passing-brightgreen.svg)](tests/)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/JianFeiGan/agent-collab/releases)
 
 Define workflows in YAML. AgentCollab schedules tasks, runs agents in parallel, prevents file conflicts, and merges results — so your AI coding team works together, not against each other.
 
@@ -141,9 +142,20 @@ tasks:                       # Task definitions
     agent: agent-id          # Reference to an agent above
     prompt: |                # Instructions for the agent
       Do this specific thing.
+      Supports ${VAR} and ${VAR:-default} variables.
+      Can reference upstream output: ${task_id.output}
     depends_on: [other-id]   # Tasks that must complete first
     outputs: [path/]         # Files/dirs this task may modify
     merge_strategy: comments # How to handle outputs
+    priority: 10             # Higher = runs first in parallel level
+    when: "other_task.output contains 'success'"  # Conditional execution
+
+variables:                   # Workflow-level variables (v0.2+)
+  env_name: production
+  max_retries: "3"
+
+include: []                  # Include external workflow files (v0.2+)
+  # - shared-tasks.yaml
 
 strategy:                    # Execution settings
   max_parallel: 4            # Max concurrent tasks (default: 4)
