@@ -1,5 +1,12 @@
+# Fullstack Web App — Build backend and frontend in parallel, then review
+#
+# Demonstrates:
+#   - Parallel task execution (backend + frontend run simultaneously)
+#   - Multi-agent workflow (different agents for different concerns)
+#   - Read-only reviewer agent for code review
+
 name: fullstack-webapp
-description: Build a fullstack web app with FastAPI backend and React frontend
+description: Build a FastAPI backend and React frontend in parallel, then run a security review
 
 agents:
   backend:
@@ -7,11 +14,13 @@ agents:
     model: sonnet
     workdir: ./backend
     allowed_tools: [Read, Write, Edit, Bash]
+
   frontend:
     type: claude-code
     model: sonnet
     workdir: ./frontend
     allowed_tools: [Read, Write, Edit, Bash]
+
   reviewer:
     type: claude-code
     model: opus
@@ -21,35 +30,39 @@ tasks:
   - id: setup-backend
     agent: backend
     prompt: |
-      Create a FastAPI project with:
-      - SQLAlchemy + SQLite database
-      - User model (id, name, email, created_at)
-      - CRUD endpoints for users
-      - Pydantic schemas for request/response
-      Include proper error handling and type hints.
+      Create a FastAPI project with the following structure:
+      - app/main.py — FastAPI app with CORS middleware
+      - app/models.py — SQLAlchemy User model (id, name, email, created_at)
+      - app/schemas.py — Pydantic request/response schemas
+      - app/database.py — SQLite engine and session setup
+      - app/routers/users.py — CRUD endpoints: GET /users, POST /users, GET /users/{id}, PUT /users/{id}, DELETE /users/{id}
+      - requirements.txt — all dependencies
+      Include proper error handling (404, 422), type hints, and docstrings.
     outputs: [backend/]
 
   - id: setup-frontend
     agent: frontend
     prompt: |
-      Create a React + TypeScript project with:
-      - Vite as build tool
-      - User list page with table view
-      - User create/edit form
-      - API client with fetch
-      Use modern React patterns (hooks, functional components).
+      Create a React + TypeScript project using Vite:
+      - src/App.tsx — Main app with React Router
+      - src/components/UserList.tsx — Table view of users with loading/error states
+      - src/components/UserForm.tsx — Create/edit form with validation
+      - src/api/users.ts — API client using fetch with error handling
+      - src/types/user.ts — TypeScript interfaces matching the backend schema
+      Use functional components, hooks, and CSS modules for styling.
     outputs: [frontend/]
 
   - id: review
     depends_on: [setup-backend, setup-frontend]
     agent: reviewer
     prompt: |
-      Review both backend and frontend code for:
-      1. Security issues (SQL injection, XSS)
-      2. Error handling gaps
-      3. Type safety
-      4. Code quality
-      Provide a summary of findings.
+      Review the fullstack project for production readiness:
+      1. Security: SQL injection, XSS, CORS misconfigurations, missing auth
+      2. Error handling: unhandled exceptions, missing validation
+      3. Type safety: any usage, missing type annotations
+      4. API design: REST conventions, status codes, pagination
+      5. Frontend: accessibility, responsive design, error boundaries
+      Provide findings grouped by severity (critical/high/medium/low).
     merge_strategy: comments
 
 strategy:

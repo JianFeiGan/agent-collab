@@ -1,17 +1,26 @@
+# Parallel Refactor — Refactor two modules simultaneously, then integrate
+#
+# Demonstrates:
+#   - Parallel independent tasks (auth + database refactored at the same time)
+#   - Integration task that depends on both parallel tasks
+#   - Scoped workdirs to prevent agents from interfering with each other
+
 name: parallel-refactor
-description: Refactor different parts of a codebase in parallel
+description: Refactor authentication and database modules in parallel, then integrate changes
 
 agents:
-  module-a:
+  auth-agent:
     type: claude-code
     model: sonnet
-    workdir: ./src/module_a
+    workdir: ./src/auth
     allowed_tools: [Read, Write, Edit]
-  module-b:
+
+  db-agent:
     type: claude-code
     model: sonnet
-    workdir: ./src/module_b
+    workdir: ./src/db
     allowed_tools: [Read, Write, Edit]
+
   integrator:
     type: claude-code
     model: sonnet
@@ -19,32 +28,38 @@ agents:
 
 tasks:
   - id: refactor-auth
-    agent: module-a
+    agent: auth-agent
     prompt: |
       Refactor the authentication module:
-      - Extract token generation into separate functions
-      - Add type hints to all functions
-      - Add docstrings
-      - Split large functions into smaller ones
-    outputs: [src/module_a/auth.py]
+      - Extract token generation (JWT creation, validation) into a separate token.py
+      - Add password hashing with bcrypt in a password.py module
+      - Add type hints to all function signatures
+      - Add docstrings explaining each public function
+      - Split any functions over 30 lines into smaller focused functions
+      - Ensure all imports are updated after the split
+    outputs: [src/auth/]
 
   - id: refactor-database
-    agent: module-b
+    agent: db-agent
     prompt: |
       Refactor the database module:
-      - Use connection pooling
-      - Add retry logic for failed queries
-      - Extract query builders into separate functions
-      - Add type hints and docstrings
-    outputs: [src/module_b/database.py]
+      - Add connection pooling using SQLAlchemy's create_engine(pool_size=5)
+      - Add retry logic with exponential backoff for transient failures
+      - Extract raw SQL queries into typed query builder functions
+      - Add type hints and docstrings to all public functions
+      - Create a separate migrations.py for schema changes
+      - Ensure all imports are updated after the split
+    outputs: [src/db/]
 
   - id: update-imports
     depends_on: [refactor-auth, refactor-database]
     agent: integrator
     prompt: |
-      Update all import statements across the project
-      to reflect the refactored module structure.
-      Run tests to verify nothing is broken.
+      The auth and db modules have been refactored. Now:
+      - Update all import statements across the project to match the new module structure
+      - Run the test suite to verify nothing is broken
+      - Fix any import errors or missing references
+      - Ensure all tests still pass after the refactor
     outputs: [src/]
 
 strategy:

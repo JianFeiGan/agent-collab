@@ -1,11 +1,19 @@
+# Code Review Pipeline — Implement, review, then fix issues
+#
+# Demonstrates:
+#   - Sequential pipeline (implement → review → fix)
+#   - Different models for coding vs review (sonnet vs opus)
+#   - Read-only reviewer to prevent accidental edits
+
 name: code-review-pipeline
-description: Write code then review and fix issues automatically
+description: Implement a REST API feature, review it for issues, then auto-fix critical findings
 
 agents:
   coder:
     type: claude-code
     model: sonnet
     allowed_tools: [Read, Write, Edit, Bash]
+
   reviewer:
     type: claude-code
     model: opus
@@ -15,35 +23,39 @@ tasks:
   - id: implement-feature
     agent: coder
     prompt: |
-      Implement a simple REST API with:
-      - FastAPI
-      - GET /items (list items with pagination)
-      - POST /items (create item)
-      - GET /items/{id} (get item by id)
-      - DELETE /items/{id} (delete item)
-      Use in-memory storage (list) for simplicity.
+      Implement a task management REST API in main.py using FastAPI:
+      - In-memory storage with a list of Task objects (id, title, description, status, created_at)
+      - GET /tasks — list all tasks with optional status filter (?status=pending)
+      - POST /tasks — create a new task
+      - GET /tasks/{id} — get task by ID
+      - PATCH /tasks/{id} — update task fields
+      - DELETE /tasks/{id} — delete task
+      - GET /tasks/stats — return counts by status
+      Add Pydantic models for all request/response bodies.
     outputs: [main.py]
 
   - id: review-code
     depends_on: [implement-feature]
     agent: reviewer
     prompt: |
-      Review the code in main.py for:
-      1. Bugs and logic errors
-      2. Missing error handling
-      3. API design issues
-      4. Performance concerns
-      List each issue with severity (critical/high/medium/low).
+      Review main.py for production readiness:
+      1. Bugs and logic errors (off-by-one, missing validation, race conditions)
+      2. Missing error handling (404, 400, 422 responses)
+      3. API design issues (REST conventions, naming, status codes)
+      4. Performance concerns (O(n) lookups, missing pagination)
+      5. Security issues (input sanitization, injection risks)
+      List each issue with severity (critical/high/medium/low) and exact location.
     merge_strategy: comments
 
   - id: fix-issues
     depends_on: [review-code]
     agent: coder
     prompt: |
-      Read the review comments from the previous task.
+      Read the review findings from the previous task.
       Fix all critical and high severity issues.
-      For medium/low issues, fix only if straightforward.
-      Do not change the overall architecture.
+      For medium/low severity issues, fix only if the change is straightforward.
+      Do not change the overall architecture or add new features.
+      Ensure the API still works after fixes.
     outputs: [main.py]
 
 strategy:
