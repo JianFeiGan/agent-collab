@@ -11,6 +11,8 @@ import re
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
+from agent_collab.core.degradation import TaskDegradation
+
 
 class TaskConfig(BaseModel):
     """Configuration for a single workflow task."""
@@ -23,6 +25,7 @@ class TaskConfig(BaseModel):
     outputs: list[str] = Field(default_factory=list)
     merge_strategy: str | None = None
     when: str | None = None
+    degradation: TaskDegradation | None = None
 
 
 class AgentConfig(BaseModel):
@@ -41,6 +44,8 @@ class StrategyConfig(BaseModel):
     retry_on_failure: bool = False
     max_retries: int = 0
     timeout_per_task: int = 600
+    retry_delay: float = 1.0
+    checkpoint_enabled: bool = False
 
 
 class WorkflowConfig(BaseModel):

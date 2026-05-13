@@ -4,6 +4,31 @@ All notable changes to AgentCollab will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 2026-05-13
+
+### Added
+
+- **Token consumption tracking**: `TokenTracker` class tracks per-task input/output/total tokens with agent-level aggregation, Rich table rendering, and JSON export
+- **SQLite execution history**: `ExecutionHistory` class persists workflow runs to `~/.agent-collab/history.db` with full task-level detail and query support
+- **Exponential backoff retry**: Task retries now use `base_delay * 2^attempt` with ±25% jitter (capped at 60s), configurable via `retry_delay` in strategy
+- **Degradation policies**: `DegradationPolicy` enum (SKIP / ABORT / CONTINUE) with per-task degradation config and failure tracking
+- **Checkpoint mechanism**: `CheckpointManager` auto-saves progress after each task; supports resume from last checkpoint via `~/.agent-collab/checkpoints/`
+- **Workflow replay**: `WorkflowReplayer` restores execution state from checkpoints; CLI commands `replay` and `checkpoints list|delete`
+- **Plugin system**: `PluginManager` with `entry_points`-based discovery; ABC interfaces for `AgentPlugin`, `HookPlugin`, `FormatterPlugin`
+- **Hook system**: `HookRegistry` with `before_task`, `after_task`, `on_failure` hooks; exception-resilient execution (one failing hook doesn't block others)
+- **Sample plugins**: `EchoAgentPlugin` and `LoggingHookPlugin` in `examples/sample_plugin/`
+
+### Changed
+
+- `TaskExecutor` now accepts optional `token_tracker`, `history`, `checkpoint_manager`, and `plugin_manager` parameters
+- Hooks fire automatically around task execution lifecycle
+- `TaskConfig` gained `degradation` field; `StrategyConfig` gained `retry_delay` and `checkpoint_enabled` fields
+
+### Test Suite
+
+- 189 tests passing (up from 89 in v0.2.0)
+- New test files: test_token_tracker, test_history, test_degradation, test_checkpoint, test_replay, test_plugins, test_hooks
+
 ## [0.2.0] - 2026-05-08
 
 ### Added

@@ -6,8 +6,8 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-89%20passing-brightgreen.svg)](tests/)
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/JianFeiGan/agent-collab/releases)
+[![Tests](https://img.shields.io/badge/tests-189%20passing-brightgreen.svg)](tests/)
+[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](https://github.com/JianFeiGan/agent-collab/releases)
 
 Define workflows in YAML. AgentCollab schedules tasks, runs agents in parallel, prevents file conflicts, and merges results — so your AI coding team works together, not against each other.
 

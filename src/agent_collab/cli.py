@@ -14,7 +14,9 @@ from agent_collab.agents.aider import AiderAgent
 from agent_collab.agents.base import BaseAgent
 from agent_collab.agents.claude_code import ClaudeCodeAgent
 from agent_collab.agents.codex import CodexAgent
+from agent_collab.core.checkpoint import CheckpointManager
 from agent_collab.core.executor import TaskExecutor
+from agent_collab.core.replay import WorkflowReplayer
 from agent_collab.core.scheduler import TaskScheduler
 from agent_collab.core.workflow import WorkflowParser
 from agent_collab.display.progress import ProgressDisplay
@@ -163,3 +165,98 @@ def list_agents() -> None:
         table.add_row(name, status, cli_names.get(name, "—"))
 
     console.print(table)
+
+
+@app.command(name="replay")
+def replay_workflow(
+    checkpoint_id: str = typer.Argument(
+        ..., help="Checkpoint ID to resume from."
+    ),
+    workflow_file: Path = typer.Argument(
+        ..., help="Path to the workflow YAML file.", exists=True, readable=True
+    ),
+) -> None:
+    """Resume workflow execution from a checkpoint."""
+    try:
+        config = WorkflowParser.parse(workflow_file)
+    except (FileNotFoundError, ValueError) as exc:
+        progress.show_error(str(exc))
+        raise typer.Exit(code=1) from exc
+
+    # Build agent map
+    agent_map: dict[str, BaseAgent] = {}
+    for cfg_name, cfg in config.agents.items():
+        if cfg.type not in AGENT_REGISTRY:
+            progress.show_error(f"Unknown agent type '{cfg.type}' for agent '{cfg_name}'")
+            raise typer.Exit(code=1)
+        agent_map[cfg_name] = AGENT_REGISTRY[cfg.type]
+
+    replayer = WorkflowReplayer()
+
+    try:
+        results = asyncio.run(
+            replayer.replay_from_checkpoint(checkpoint_id, config, agent_map)
+        )
+    except FileNotFoundError as exc:
+        progress.show_error(str(exc))
+        raise typer.Exit(code=1) from exc
+
+    total_failed = 0
+    for task_id, result in results.items():
+        if result.success:
+            console.print(f"  [green]✓[/] {task_id}")
+        else:
+            total_failed += 1
+            console.print(f"  [red]✗[/] {task_id}: {result.output[:100]}")
+
+    if total_failed > 0:
+        console.print(f"\n[red]{total_failed} task(s) failed during replay.[/]")
+        raise typer.Exit(code=1)
+    else:
+        console.print(f"\n[green]Replay completed successfully. {len(results)} task(s) executed.[/]")
+
+
+@app.command(name="checkpoints")
+def checkpoints(
+    action: str = typer.Argument(
+        "list", help="Action: 'list' or 'delete'."
+    ),
+    checkpoint_id: str | None = typer.Argument(
+        None, help="Checkpoint ID (required for 'delete')."
+    ),
+) -> None:
+    """Manage workflow checkpoints."""
+    manager = CheckpointManager()
+
+    if action == "list":
+        cps = manager.list_checkpoints()
+        if not cps:
+            console.print("[yellow]No checkpoints found.[/]")
+            return
+        table = Table(title="Checkpoints")
+        table.add_column("ID", style="cyan")
+        table.add_column("Workflow")
+        table.add_column("Completed Tasks")
+        table.add_column("Timestamp")
+        for cp in cps:
+            table.add_row(
+                cp.checkpoint_id,
+                cp.workflow_name,
+                ", ".join(cp.completed_tasks) if cp.completed_tasks else "none",
+                cp.timestamp,
+            )
+        console.print(table)
+
+    elif action == "delete":
+        if checkpoint_id is None:
+            progress.show_error("checkpoint_id is required for 'delete' action.")
+            raise typer.Exit(code=1)
+        deleted = manager.delete(checkpoint_id)
+        if deleted:
+            console.print(f"[green]Deleted checkpoint '{checkpoint_id}'.[/]")
+        else:
+            console.print(f"[yellow]Checkpoint '{checkpoint_id}' not found.[/]")
+            raise typer.Exit(code=1)
+    else:
+        progress.show_error(f"Unknown action '{action}'. Use 'list' or 'delete'.")
+        raise typer.Exit(code=1)

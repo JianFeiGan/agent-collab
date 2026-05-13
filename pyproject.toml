@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-collab"
-version = "0.2.0"
+version = "0.3.0"
 description = "Multi-Agent Orchestration Engine — orchestrate Claude Code, Codex, Aider to collaborate on projects"
 readme = "README.md"
 license = {text = "MIT"}
@@ -39,6 +39,10 @@ dev = [
 
 [project.scripts]
 agent-collab = "agent_collab.cli:app"
+
+[project.entry-points."agent_collab.plugins"]
+# Example: uncomment to register a built-in plugin
+# sample-agent = "agent_collab.plugins.interfaces:AgentPlugin"
 
 [tool.ruff]
 target-version = "py311"

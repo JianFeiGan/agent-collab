@@ -6,8 +6,8 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-89%20passing-brightgreen.svg)](tests/)
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/JianFeiGan/agent-collab/releases)
+[![Tests](https://img.shields.io/badge/tests-189%20passing-brightgreen.svg)](tests/)
+[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](https://github.com/JianFeiGan/agent-collab/releases)
 
 用 YAML 定义工作流，AgentCollab 负责任务调度、并行执行、文件冲突防护和结果合并——让你的 AI 编程团队协同作战，而非相互掣肘。
 
