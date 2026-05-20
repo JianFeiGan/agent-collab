@@ -4,6 +4,50 @@ All notable changes to AgentCollab will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.0] - 2026-05-20
+
+### Added
+
+- **Enhanced Workflow Engine**: Support for conditional branches and loops
+  - `ConditionConfig`: Configuration for conditional branching with multiple operators
+  - `ConditionNodeConfig`: Node type for conditional branching in workflows
+  - `ConditionEvaluator`: Evaluates conditions with 12 operators (eq, ne, gt, lt, gte, lte, contains, not_contains, in, not_in, regex)
+  - `LoopConfig`: Configuration for loop structures (for_each, while)
+  - `LoopNodeConfig`: Node type for loops in workflows
+  - `LoopExpander`: Expands loop constructs into concrete task sequences
+  - `NodeType` enum: TASK, CONDITION, LOOP, PARALLEL
+  - Enhanced `WorkflowConfig` with conditions and loops fields
+  - Enhanced `WorkflowParser._check_cycles()` to handle conditions and loops
+  - Enhanced `WorkflowParser.expand_loops()` to expand loop constructs
+
+- **Web UI Visual Editor**: React-based workflow visualization
+  - React + TypeScript + Vite project setup
+  - React Flow integration for drag-and-drop node editing
+  - Custom node types: TaskNode, ConditionNode, LoopNode
+  - WorkflowEditor main component with canvas, toolbar, and panels
+  - Toolbar component for adding nodes and controlling execution
+  - NodeEditor component for editing node properties
+  - ExecutionPanel component for real-time execution logs
+  - Zustand state management for workflow state
+
+- **32 new tests** for enhanced workflow features
+  - Test coverage for ConditionConfig and ConditionEvaluator
+  - Test coverage for LoopConfig and LoopExpander
+  - Test coverage for enhanced WorkflowConfig validation
+  - Test coverage for loop expansion
+
+### Changed
+
+- `workflow.py`: Enhanced with conditional branches and loops
+- `WorkflowParser._check_cycles()`: Now accepts WorkflowConfig instead of task list
+- Error messages changed from "unknown task" to "unknown node" for consistency
+- Version bumped from 1.1.0 to 1.2.0
+
+### Test Suite
+
+- 255 tests passing (up from 223 in v1.1.0)
+- New test file: test_workflow_enhanced.py
+
 ## [1.1.0] - 2026-05-20
 
 ### Added

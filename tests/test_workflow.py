@@ -70,7 +70,7 @@ def test_unknown_agent_raises():
 
 
 def test_unknown_dependency_raises():
-    with pytest.raises(ValueError, match="unknown task 'missing'"):
+    with pytest.raises(ValueError, match="unknown node 'missing'"):
         WorkflowConfig(
             name="bad",
             agents={"a1": AgentConfig(type="claude-code")},
@@ -88,8 +88,13 @@ def test_cycle_detection_direct():
         TaskConfig(id="a", agent="x", prompt="", depends_on=["b"]),
         TaskConfig(id="b", agent="x", prompt="", depends_on=["a"]),
     ]
+    config = WorkflowConfig(
+        name="test",
+        agents={"x": AgentConfig(type="x")},
+        tasks=tasks,
+    )
     with pytest.raises(ValueError, match="Dependency cycle"):
-        WorkflowParser._check_cycles(tasks)
+        WorkflowParser._check_cycles(config)
 
 
 def test_cycle_detection_indirect():
@@ -98,8 +103,13 @@ def test_cycle_detection_indirect():
         TaskConfig(id="b", agent="x", prompt="", depends_on=["c"]),
         TaskConfig(id="c", agent="x", prompt="", depends_on=["a"]),
     ]
+    config = WorkflowConfig(
+        name="test",
+        agents={"x": AgentConfig(type="x")},
+        tasks=tasks,
+    )
     with pytest.raises(ValueError, match="Dependency cycle"):
-        WorkflowParser._check_cycles(tasks)
+        WorkflowParser._check_cycles(config)
 
 
 def test_no_cycle_passes():
@@ -109,7 +119,12 @@ def test_no_cycle_passes():
         TaskConfig(id="c", agent="x", prompt="", depends_on=["a"]),
         TaskConfig(id="d", agent="x", prompt="", depends_on=["b", "c"]),
     ]
-    WorkflowParser._check_cycles(tasks)  # should not raise
+    config = WorkflowConfig(
+        name="test",
+        agents={"x": AgentConfig(type="x")},
+        tasks=tasks,
+    )
+    WorkflowParser._check_cycles(config)  # should not raise
 
 
 # ── YAML parsing ────────────────────────────────────────────────────
