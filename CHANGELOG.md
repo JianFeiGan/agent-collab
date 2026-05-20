@@ -4,6 +4,54 @@ All notable changes to AgentCollab will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.0] - 2026-05-20
+
+### Added
+
+- **Enterprise Security Module**: Complete security system for enterprise deployments
+  - `AuthProvider` abstract base class for authentication
+  - `TenantProvider` abstract base class for tenant management
+  - `APIKeyProvider` abstract base class for API key management
+  - `AuditProvider` abstract base class for audit logging
+  - `User` model with role-based access control
+  - `Tenant` model for multi-tenancy
+  - `APIKey` model for API key management
+  - `AuditLog` model for audit logging
+  - `Token` model for JWT tokens
+
+- **RBAC (Role-Based Access Control)**: Fine-grained permission system
+  - `UserRole` enum: ADMIN, MANAGER, DEVELOPER, VIEWER
+  - `Permission` enum: 20+ permissions for workflows, tasks, users, tenants, API keys, audit
+  - Role-Permission mapping with predefined permission sets
+  - `has_permission()` function for permission checking
+
+- **Password Security**: Secure password handling
+  - `hash_password()`: SHA-256 with salt password hashing
+  - `verify_password()`: Password verification against hashes
+  - `generate_api_key()`: Secure API key generation
+
+- **In-Memory Implementations**: Testing implementations for security components
+  - `InMemoryAuthProvider`: User authentication and management
+  - `InMemoryTenantProvider`: Tenant management
+  - `InMemoryAPIKeyProvider`: API key management with validation
+  - `InMemoryAuditProvider`: Audit log storage and querying
+
+- **35 new tests** for enterprise security
+  - Test coverage for password hashing and verification
+  - Test coverage for API key generation and validation
+  - Test coverage for RBAC permissions
+  - Test coverage for all security data models
+  - Test coverage for all in-memory providers
+
+### Changed
+
+- Version bumped from 1.4.0 to 1.5.0
+
+### Test Suite
+
+- 350 tests passing (up from 315 in v1.4.0)
+- New test file: test_security.py
+
 ## [1.4.0] - 2026-05-20
 
 ### Added
