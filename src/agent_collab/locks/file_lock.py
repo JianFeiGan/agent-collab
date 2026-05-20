@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 from pathlib import Path
+from typing import TextIO
 
 
 class FileLockManager:
@@ -13,7 +15,7 @@ class FileLockManager:
     def __init__(self, lock_dir: str | Path = ".agent-collab/locks") -> None:
         self.lock_dir = Path(lock_dir)
         self.lock_dir.mkdir(parents=True, exist_ok=True)
-        self._held_locks: dict[str, int] = {}
+        self._held_locks: dict[str, TextIO] = {}
 
     def acquire(self, file_path: str, task_id: str) -> bool:
         """Try to acquire a lock for *file_path* on behalf of *task_id*.
@@ -46,5 +48,7 @@ class FileLockManager:
         return list(self._held_locks.keys())
 
     def _lock_path(self, file_path: str) -> Path:
+        # Use hash of full path to avoid conflicts with same-name files in different dirs
+        path_hash = hashlib.md5(file_path.encode()).hexdigest()[:12]
         safe_name = Path(file_path).name.replace("/", "_").replace("\\", "_")
-        return self.lock_dir / f"{safe_name}.lock"
+        return self.lock_dir / f"{safe_name}_{path_hash}.lock"

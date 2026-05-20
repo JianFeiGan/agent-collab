@@ -12,9 +12,10 @@ from dataclasses import dataclass, field
 
 from agent_collab.agents.base import AgentResult, BaseAgent
 from agent_collab.core.checkpoint import Checkpoint, CheckpointManager
-from agent_collab.core.degradation import DegradationHandler, DegradationPolicy, TaskDegradation
+from agent_collab.core.degradation import DegradationHandler, DegradationPolicy
 from agent_collab.core.workflow import AgentConfig, StrategyConfig, TaskConfig, WorkflowParser
 from agent_collab.locks.file_lock import FileLockManager
+from agent_collab.plugins.hooks import HookRegistry
 
 try:
     from agent_collab.observability.token_tracker import TokenTracker
@@ -52,6 +53,7 @@ class TaskExecutor:
         variables: dict[str, str] | None = None,
         checkpoint_manager: CheckpointManager | None = None,
         workflow_name: str = "",
+        hook_registry: HookRegistry | None = None,
     ) -> None:
         self.agents = agents
         self.agent_configs = agent_configs
@@ -64,6 +66,7 @@ class TaskExecutor:
         self.workflow_name = workflow_name
         self.degradation_handler = DegradationHandler()
         self._execution_id: int | None = None
+        self.hook_registry = hook_registry or HookRegistry()
 
     async def execute_task(self, task: TaskConfig) -> AgentResult:
         """Execute a single task with retry logic and degradation support."""
@@ -91,6 +94,15 @@ class TaskExecutor:
                     success=False,
                     output=f"Could not acquire lock for {output}",
                 )
+
+        # Trigger before-task hooks
+        hook_metadata: dict[str, object] = {}
+        await self.hook_registry.trigger_before(
+            task_id=task.id,
+            prompt=resolved_prompt,
+            agent_name=task.agent,
+            metadata=hook_metadata,
+        )
 
         try:
             start = time.monotonic()
@@ -122,6 +134,21 @@ class TaskExecutor:
             # Auto-save checkpoint after successful task
             if result.success and self.strategy.checkpoint_enabled and self.checkpoint_manager:
                 self._save_checkpoint()
+
+            # Trigger after-task hooks on success
+            if result.success:
+                await self.hook_registry.trigger_after(
+                    task_id=task.id,
+                    result=result,
+                    metadata=hook_metadata,
+                )
+            else:
+                # Trigger failure hooks
+                await self.hook_registry.trigger_failure(
+                    task_id=task.id,
+                    result=result,
+                    metadata=hook_metadata,
+                )
 
             return result
         finally:

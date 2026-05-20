@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -62,7 +62,7 @@ class CheckpointManager:
             The checkpoint ID.
         """
         if not checkpoint.timestamp:
-            checkpoint.timestamp = datetime.now(timezone.utc).isoformat()
+            checkpoint.timestamp = datetime.now(UTC).isoformat()
         path = self._path_for(checkpoint.checkpoint_id)
         path.write_text(
             json.dumps(asdict(checkpoint), indent=2, ensure_ascii=False),

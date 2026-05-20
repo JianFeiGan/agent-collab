@@ -8,9 +8,8 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-
 
 _DEFAULT_DB_DIR = Path.home() / ".agent-collab"
 _DEFAULT_DB_PATH = _DEFAULT_DB_DIR / "history.db"
@@ -134,7 +133,7 @@ class ExecutionHistory:
             The auto-generated execution id.
         """
         conn = self._get_conn()
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         cursor = conn.execute(
             "INSERT INTO executions (workflow_name, started_at, status) VALUES (?, ?, ?)",
             (workflow_name, now, "running"),
@@ -150,7 +149,7 @@ class ExecutionHistory:
             status: Final status (e.g. ``'success'``, ``'failed'``).
         """
         conn = self._get_conn()
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         conn.execute(
             "UPDATE executions SET finished_at = ?, status = ? WHERE id = ?",
             (now, status, execution_id),
@@ -184,7 +183,7 @@ class ExecutionHistory:
             The auto-generated task execution id.
         """
         conn = self._get_conn()
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         cursor = conn.execute(
             """INSERT INTO task_executions
                (execution_id, task_id, agent, status, duration,

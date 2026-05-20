@@ -29,16 +29,102 @@ app = typer.Typer(
 console = Console()
 progress = ProgressDisplay()
 
-# ── Agent registry ──────────────────────────────────────────────────
+# ── Agent registry (lazy initialization) ─────────────────────────────
 
-AGENT_REGISTRY: dict[str, BaseAgent] = {
-    "claude-code": ClaudeCodeAgent(),
-    "codex": CodexAgent(),
-    "aider": AiderAgent(),
-}
+_AGENT_REGISTRY: dict[str, BaseAgent] | None = None
+
+
+def _get_agent_registry() -> dict[str, BaseAgent]:
+    """Get or create the agent registry with lazy initialization."""
+    global _AGENT_REGISTRY
+    if _AGENT_REGISTRY is None:
+        from agent_collab.agents.opencode import OpenCodeAgent
+        _AGENT_REGISTRY = {
+            "claude-code": ClaudeCodeAgent(),
+            "codex": CodexAgent(),
+            "aider": AiderAgent(),
+            "opencode": OpenCodeAgent(),
+        }
+    return _AGENT_REGISTRY
+
+
+# For backward compatibility, expose as property-like access
+class _RegistryProxy:
+    """Proxy that provides dict-like access to the lazy registry."""
+
+    def __getitem__(self, key: str) -> BaseAgent:
+        return _get_agent_registry()[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in _get_agent_registry()
+
+    def get(self, key: str, default=None) -> BaseAgent | None:
+        return _get_agent_registry().get(key, default)
+
+    def items(self):
+        return _get_agent_registry().items()
+
+    def keys(self):
+        return _get_agent_registry().keys()
+
+    def values(self):
+        return _get_agent_registry().values()
+
+
+AGENT_REGISTRY = _RegistryProxy()
 
 
 # ── Commands ────────────────────────────────────────────────────────
+
+
+async def _run_workflow(config, scheduler, levels) -> tuple[int, int]:
+    """Execute all workflow levels asynchronously.
+
+    Returns:
+        Tuple of (total_tasks, total_failed).
+    """
+    # Build agent map: config name -> agent instance
+    agent_map: dict[str, BaseAgent] = {}
+    for cfg_name, cfg in config.agents.items():
+        if cfg.type not in AGENT_REGISTRY:
+            raise ValueError(f"Unknown agent type '{cfg.type}' for agent '{cfg_name}'")
+        agent_map[cfg_name] = AGENT_REGISTRY[cfg.type]
+
+    executor = TaskExecutor(
+        agents=agent_map,
+        agent_configs=config.agents,
+        strategy=config.strategy,
+    )
+
+    progress.show_workflow_start(
+        name=config.name,
+        task_count=len(config.tasks),
+        agent_count=len(config.agents),
+    )
+
+    start_time = time.monotonic()
+    total_failed = 0
+    total_tasks = 0
+
+    for level_idx, task_ids in enumerate(levels):
+        progress.show_level_start(level_idx, task_ids)
+        tasks = [scheduler.tasks[tid] for tid in task_ids]
+        results = await executor.execute_level(tasks)
+
+        for task in tasks:
+            result = results[task.id]
+            progress.show_task_start(task.id, task.agent)
+            total_tasks += 1
+            if result.success:
+                progress.show_task_complete(task.id, result.duration_seconds)
+            else:
+                total_failed += 1
+                progress.show_task_failed(task.id, result.output)
+
+    elapsed = time.monotonic() - start_time
+    progress.show_workflow_complete(total_tasks, total_failed, elapsed)
+
+    return total_tasks, total_failed
 
 
 @app.command()
@@ -61,47 +147,11 @@ def run(
         progress.show_error(str(exc))
         raise typer.Exit(code=1) from exc
 
-    # Build agent map: config name -> agent instance
-    agent_map: dict[str, BaseAgent] = {}
-    for cfg_name, cfg in config.agents.items():
-        if cfg.type not in AGENT_REGISTRY:
-            progress.show_error(f"Unknown agent type '{cfg.type}' for agent '{cfg_name}'")
-            raise typer.Exit(code=1)
-        agent_map[cfg_name] = AGENT_REGISTRY[cfg.type]
-
-    executor = TaskExecutor(
-        agents=agent_map,
-        agent_configs=config.agents,
-        strategy=config.strategy,
-    )
-
-    progress.show_workflow_start(
-        name=config.name,
-        task_count=len(config.tasks),
-        agent_count=len(config.agents),
-    )
-
-    start_time = time.monotonic()
-    total_failed = 0
-    total_tasks = 0
-
-    for level_idx, task_ids in enumerate(levels):
-        progress.show_level_start(level_idx, task_ids)
-        tasks = [scheduler.tasks[tid] for tid in task_ids]
-        results = asyncio.run(executor.execute_level(tasks))
-
-        for task in tasks:
-            result = results[task.id]
-            progress.show_task_start(task.id, task.agent)
-            total_tasks += 1
-            if result.success:
-                progress.show_task_complete(task.id, result.duration_seconds)
-            else:
-                total_failed += 1
-                progress.show_task_failed(task.id, result.output)
-
-    elapsed = time.monotonic() - start_time
-    progress.show_workflow_complete(total_tasks, total_failed, elapsed)
+    try:
+        total_tasks, total_failed = asyncio.run(_run_workflow(config, scheduler, levels))
+    except ValueError as exc:
+        progress.show_error(str(exc))
+        raise typer.Exit(code=1) from exc
 
     if total_failed > 0:
         raise typer.Exit(code=1)
@@ -167,6 +217,16 @@ def list_agents() -> None:
     console.print(table)
 
 
+async def _replay_workflow(config, agent_map, checkpoint_id) -> dict:
+    """Replay workflow from checkpoint asynchronously.
+
+    Returns:
+        Dict of task_id -> AgentResult.
+    """
+    replayer = WorkflowReplayer()
+    return await replayer.replay_from_checkpoint(checkpoint_id, config, agent_map)
+
+
 @app.command(name="replay")
 def replay_workflow(
     checkpoint_id: str = typer.Argument(
@@ -191,12 +251,8 @@ def replay_workflow(
             raise typer.Exit(code=1)
         agent_map[cfg_name] = AGENT_REGISTRY[cfg.type]
 
-    replayer = WorkflowReplayer()
-
     try:
-        results = asyncio.run(
-            replayer.replay_from_checkpoint(checkpoint_id, config, agent_map)
-        )
+        results = asyncio.run(_replay_workflow(config, agent_map, checkpoint_id))
     except FileNotFoundError as exc:
         progress.show_error(str(exc))
         raise typer.Exit(code=1) from exc

@@ -14,7 +14,6 @@ from rich.tree import Tree
 
 from agent_collab.core.workflow import TaskConfig
 
-
 # Status symbols for tree rendering
 _STATUS_SYMBOLS: dict[str, str] = {
     "pending": "○",

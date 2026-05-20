@@ -10,7 +10,6 @@ import pytest
 from agent_collab.agents.base import AgentResult
 from agent_collab.plugins.hooks import HookContext, HookRegistry
 
-
 # ---------------------------------------------------------------------------
 # HookContext
 # ---------------------------------------------------------------------------

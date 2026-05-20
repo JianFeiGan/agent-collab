@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import os
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
-import os
-import re
 
 import yaml
 from pydantic import BaseModel, Field, model_validator

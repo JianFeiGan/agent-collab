@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
-
 import pytest
 
 from agent_collab.agents.base import AgentResult, BaseAgent
@@ -13,7 +11,6 @@ from agent_collab.plugins.interfaces import (
     HookPlugin,
 )
 from agent_collab.plugins.manager import PluginManager
-
 
 # ---------------------------------------------------------------------------
 # Helpers

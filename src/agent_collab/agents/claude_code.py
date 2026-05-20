@@ -53,7 +53,7 @@ class ClaudeCodeAgent(BaseAgent):
             stdout, stderr = await asyncio.wait_for(
                 proc.communicate(), timeout=timeout
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             elapsed = time.monotonic() - start
             return AgentResult(
