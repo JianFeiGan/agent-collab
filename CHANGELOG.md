@@ -4,6 +4,44 @@ All notable changes to AgentCollab will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.0] - 2026-05-20
+
+### Added
+
+- **Human-in-the-Loop (HITL) Module**: Complete HITL system for human approval and input
+  - `HITLProvider` abstract base class for HITL providers
+  - `WebhookProvider` for webhook-based notifications
+  - `InMemoryProvider` for testing
+  - `ApprovalRequest` dataclass for approval requests
+  - `InputRequest` dataclass for input requests
+  - `ApprovalHistory` dataclass for approval history
+  - `ApprovalStatus` enum (PENDING, APPROVED, REJECTED, EXPIRED, CANCELLED)
+  - `InputType` enum (TEXT, NUMBER, BOOLEAN, SELECT, MULTI_SELECT, FILE, JSON)
+
+- **HITL Nodes**: Workflow integration for human interaction
+  - `ApprovalNodeConfig`: Configuration for approval nodes
+  - `InputNodeConfig`: Configuration for input nodes
+  - `ReviewNodeConfig`: Configuration for review nodes
+  - `HITLManager`: Manages HITL nodes and their lifecycle
+  - Auto-approve capability for automated workflows
+  - Timeout support for requests
+  - Next node routing for approve/reject flows
+
+- **32 new tests** for HITL module
+  - Test coverage for all HITL data classes
+  - Test coverage for InMemoryProvider
+  - Test coverage for HITLManager
+  - Test coverage for approval, input, and review node configs
+
+### Changed
+
+- Version bumped from 1.2.0 to 1.3.0
+
+### Test Suite
+
+- 287 tests passing (up from 255 in v1.2.0)
+- New test file: test_hitl.py
+
 ## [1.2.0] - 2026-05-20
 
 ### Added

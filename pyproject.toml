@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-collab"
-version = "1.2.0"
+version = "1.3.0"
 description = "Multi-Agent Orchestration Engine — orchestrate Claude Code, Codex, Aider to collaborate on projects"
 readme = "README.md"
 license = {text = "MIT"}
