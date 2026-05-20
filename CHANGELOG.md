@@ -4,6 +4,52 @@ All notable changes to AgentCollab will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0] - 2026-05-20
+
+### Added
+
+- **Multi-Model Scheduling Engine**: New `llm` module with support for multiple LLM providers
+  - `BaseLLMProvider` abstract interface for LLM providers
+  - `OpenAIProvider` for OpenAI API (GPT-4o, GPT-4, GPT-3.5-turbo, o1)
+  - `AnthropicProvider` for Anthropic API (Claude 3 Opus, Sonnet, Haiku)
+  - `GoogleProvider` for Google Gemini API (Gemini 1.5 Pro, Flash)
+  - `LLMConfig` and `LLMResponse` dataclasses for provider configuration and responses
+  - `get_provider()` factory function for provider instantiation
+
+- **Multi-Model Scheduler**: `MultiModelScheduler` for intelligent model routing
+  - Multiple selection strategies:
+    - `ROUND_ROBIN`: Cycles through models sequentially
+    - `COST_OPTIMIZED`: Selects the cheapest model
+    - `QUALITY_FIRST`: Selects the highest quality model
+    - `LATENCY_OPTIMIZED`: Selects the fastest model
+    - `RANDOM`: Randomly selects a model
+  - Automatic fallback to other models on failure
+  - Per-model statistics tracking (calls, tokens, cost, latency)
+  - Configurable retry logic with exponential backoff
+
+- **Mixture of Agents (MoA) Engine**: `MoAEngine` for multi-model collaboration
+  - Reference model phase: Multiple models generate initial responses
+  - Aggregation phase: Aggregator model synthesizes the final response
+  - Configurable number of reference rounds and models per round
+  - Automatic refinement across rounds
+  - Comprehensive cost and token tracking
+
+- **34 new tests** covering LLM providers, scheduler, and MoA engine
+  - Test coverage for all provider types
+  - Test coverage for all selection strategies
+  - Test coverage for MoA prompt generation
+  - Test coverage for statistics tracking
+
+### Changed
+
+- `pyproject.toml`: Added `httpx>=0.25.0` dependency for LLM API calls
+- Version bumped from 1.0.0 to 1.1.0
+
+### Test Suite
+
+- 223 tests passing (up from 189 in v1.0.0)
+- New test file: test_llm.py
+
 ## [1.0.0] - 2026-05-20
 
 ### 🎉 First Stable Release

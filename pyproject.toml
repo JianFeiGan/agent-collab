@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-collab"
-version = "1.0.0"
+version = "1.1.0"
 description = "Multi-Agent Orchestration Engine — orchestrate Claude Code, Codex, Aider to collaborate on projects"
 readme = "README.md"
 license = {text = "MIT"}
@@ -28,6 +28,7 @@ dependencies = [
     "pyyaml>=6.0",
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
+    "httpx>=0.25.0",
 ]
 
 [project.optional-dependencies]
