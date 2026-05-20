@@ -173,8 +173,11 @@ strategy:                    # Execution settings
 | **Claude Code** | `claude-code` | Complex reasoning, multi-file edits, code review |
 | **Codex** | `codex` | Quick code generation, single-file tasks |
 | **Aider** | `aider` | Git-aware edits, pair programming style |
+| **OpenCode** | `opencode` | Open-source multi-model code assistant |
 
 All agents implement the `BaseAgent` interface. See [`src/agent_collab/agents/`](src/agent_collab/agents/) for the adapter implementations.
+
+> **Want to build your own agent adapter?** See the [Agent Adapter Development Guide](docs/agent-adapter-guide.md) for a complete walkthrough.
 
 ---
 

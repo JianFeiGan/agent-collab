@@ -272,6 +272,10 @@ agents:
     allowed_tools: [Read, Write, Edit, Bash]
 ```
 
+### 自定义适配器
+
+如需创建自定义 Agent 适配器，请参阅 [Agent 适配器开发指南](agent-adapter-guide.md)。
+
 ---
 
 ## 多模型调度
