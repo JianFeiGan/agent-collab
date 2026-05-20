@@ -4,6 +4,67 @@ All notable changes to AgentCollab will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.0] - 2026-05-20
+
+### 🎉 First Stable Release
+
+AgentCollab reaches v1.0.0 — a production-ready multi-agent orchestration engine for AI coding assistants.
+
+### Highlights
+
+- **189 tests passing** with comprehensive coverage across all modules
+- **Plugin system** with entry_points-based discovery and hook lifecycle
+- **Checkpoint & resume** for long-running workflows
+- **Token tracking** with per-task and per-agent aggregation
+- **Execution history** persisted to SQLite for analysis
+
+### Added
+
+- **v0.3.0 features** (observability, error recovery, plugins):
+  - Token consumption tracking (`TokenTracker`)
+  - SQLite execution history (`ExecutionHistory`)
+  - Exponential backoff retry with jitter
+  - Degradation policies (SKIP / ABORT / CONTINUE)
+  - Checkpoint mechanism with resume support
+  - Plugin system with AgentPlugin, HookPlugin, FormatterPlugin interfaces
+  - Hook system (before_task, after_task, on_failure)
+
+- **v0.2.0 features** (workflow enhancements):
+  - Claude Code resume session (`--continue` and `--resume`)
+  - OpenCode agent adapter
+  - Agent auto-detection (`is_available()`)
+  - Workflow variables (`${VAR}` and `${VAR:-default}`)
+  - Conditional execution (`when` field)
+  - Task output passing (`${task_id.output}`)
+  - Workflow include (`include` field)
+  - Task priority ordering
+  - Execution log with JSON export
+  - Cancel mechanism (`cancel_all()`)
+
+- **v0.1.0 features** (core engine):
+  - YAML-based workflow definition with Pydantic validation
+  - DAG scheduler with topological sort and parallel execution
+  - Async executor with `asyncio.Semaphore` concurrency control
+  - File locking (`fcntl`-based exclusive locks)
+  - Git merge strategy for task outputs
+  - Agent adapters (Claude Code, Codex, Aider)
+  - CLI with `run`, `validate`, and `list-agents` commands
+  - Rich TUI progress display
+  - Cycle detection and retry logic
+
+### Documentation
+
+- Comprehensive README with installation, quick start, and usage guide
+- Chinese README (README.zh-CN.md) with bilingual language switcher
+- Contributing guide (CONTRIBUTING.md) with agent adapter development instructions
+- Business requirements, technical design, and self-review documents
+- Example workflows (fullstack, code-review, refactor)
+- Sample plugins (EchoAgentPlugin, LoggingHookPlugin)
+
+### Test Suite
+
+- 189 tests covering workflow parsing, scheduling, execution, locking, agents, CLI, plugins, hooks, checkpoints, and more
+
 ## [0.3.0] - 2026-05-13
 
 ### Added
