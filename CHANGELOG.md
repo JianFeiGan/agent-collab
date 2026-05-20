@@ -4,6 +4,54 @@ All notable changes to AgentCollab will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.0] - 2026-05-20
+
+### Added
+
+- **Distributed Execution Engine**: Complete distributed execution system
+  - `TaskQueue` abstract base class for task queues
+  - `WorkerManager` abstract base class for worker managers
+  - `DistributedExecutor` abstract base class for distributed executors
+  - `DistributedTask` dataclass for distributed tasks
+  - `TaskResult` dataclass for task results
+  - `WorkerInfo` dataclass for worker information
+  - `TaskStatus` enum (PENDING, QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED, RETRYING)
+  - `WorkerStatus` enum (IDLE, BUSY, OFFLINE, ERROR)
+  - `LoadBalancingStrategy` enum (ROUND_ROBIN, LEAST_CONNECTIONS, RANDOM, WEIGHTED, RESOURCE_BASED)
+
+- **In-Memory Implementations**: Testing implementations for distributed components
+  - `InMemoryTaskQueue`: Priority-based task queue with retry support
+  - `InMemoryWorkerManager`: Worker registration and management
+  - `LoadBalancer`: Multiple load balancing strategies
+  - Task priority support (higher priority tasks execute first)
+  - Automatic retry for failed tasks
+  - Worker heartbeat monitoring
+  - Capability-based task routing
+
+- **Distributed Scheduler**: Orchestrates distributed task execution
+  - `DistributedScheduler`: Main scheduler for distributed execution
+  - Automatic task distribution to available workers
+  - Worker health monitoring with heartbeat
+  - Task timeout handling
+  - Automatic task reassignment on worker failure
+  - Async task execution with cancellation support
+
+- **28 new tests** for distributed execution
+  - Test coverage for all distributed data classes
+  - Test coverage for InMemoryTaskQueue
+  - Test coverage for InMemoryWorkerManager
+  - Test coverage for LoadBalancer with all strategies
+  - Test coverage for task priority and retry logic
+
+### Changed
+
+- Version bumped from 1.3.0 to 1.4.0
+
+### Test Suite
+
+- 315 tests passing (up from 287 in v1.3.0)
+- New test file: test_distributed.py
+
 ## [1.3.0] - 2026-05-20
 
 ### Added
