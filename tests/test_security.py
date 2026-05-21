@@ -395,3 +395,66 @@ class TestInMemoryAuditProvider:
 
         logs = await provider.get_logs("tenant_1", limit=5, offset=5)
         assert len(logs) == 5
+
+
+class TestJWTToken:
+    """Tests for JWT token generation and verification."""
+
+    def test_generate_and_verify_token(self):
+        from agent_collab.security import generate_token, verify_token
+
+        user = User(
+            id="user-123",
+            username="testuser",
+            hashed_password=hash_password("pass"),
+            role=UserRole.DEVELOPER,
+            tenant_id="t1",
+        )
+        token = generate_token(user, secret="test-secret")
+        assert token.access_token.count(".") == 2  # header.payload.signature
+        assert token.token_type == "bearer"
+        assert token.user_id == "user-123"
+        assert token.tenant_id == "t1"
+        assert token.role == UserRole.DEVELOPER
+
+        payload = verify_token(token.access_token, secret="test-secret")
+        assert payload is not None
+        assert payload["sub"] == "user-123"
+        assert payload["username"] == "testuser"
+        assert payload["role"] == "developer"
+
+    def test_verify_wrong_secret(self):
+        from agent_collab.security import generate_token, verify_token
+
+        user = User(id="u1", username="u", hashed_password="p", role=UserRole.DEVELOPER)
+        token = generate_token(user, secret="correct")
+        assert verify_token(token.access_token, secret="wrong") is None
+
+    def test_verify_tampered_token(self):
+        from agent_collab.security import generate_token, verify_token
+
+        user = User(id="u1", username="u", hashed_password="p", role=UserRole.DEVELOPER)
+        token = generate_token(user, secret="s")
+        assert verify_token(token.access_token + "x", secret="s") is None
+
+    def test_verify_expired_token(self):
+        from agent_collab.security import generate_token, verify_token
+
+        user = User(id="u1", username="u", hashed_password="p", role=UserRole.DEVELOPER)
+        token = generate_token(user, expires_in=-1, secret="s")  # already expired
+        assert verify_token(token.access_token, secret="s") is None
+
+    def test_verify_malformed_token(self):
+        from agent_collab.security import verify_token
+
+        assert verify_token("not.a.token.at.all", secret="s") is None
+        assert verify_token("", secret="s") is None
+
+    def test_admin_role_in_token(self):
+        from agent_collab.security import generate_token, verify_token
+
+        user = User(id="u1", username="admin", hashed_password="p", role=UserRole.ADMIN)
+        token = generate_token(user, secret="s")
+        payload = verify_token(token.access_token, secret="s")
+        assert payload is not None
+        assert payload["role"] == "admin"

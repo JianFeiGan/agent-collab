@@ -316,3 +316,170 @@ def checkpoints(
     else:
         progress.show_error(f"Unknown action '{action}'. Use 'list' or 'delete'.")
         raise typer.Exit(code=1)
+
+
+# ── Security commands ────────────────────────────────────────────────
+
+
+@app.command()
+def security_create_user(
+    username: str = typer.Argument(..., help="Username."),
+    password: str = typer.Argument(..., help="Plain-text password."),
+    role: str = typer.Option("developer", help="Role: admin, manager, developer, viewer."),
+    tenant_id: str = typer.Option("default", help="Tenant ID."),
+) -> None:
+    """Create a new user account."""
+    from agent_collab.security import (
+        User,
+        UserRole,
+        hash_password,
+    )
+    from agent_collab.security.providers import InMemoryAuthProvider
+
+    provider = InMemoryAuthProvider()
+
+    try:
+        user_role = UserRole(role)
+    except ValueError:
+        progress.show_error(f"Invalid role '{role}'. Choose from: admin, manager, developer, viewer.")
+        raise typer.Exit(code=1)
+
+    import asyncio
+
+    async def _create() -> None:
+        user = User(
+            username=username,
+            hashed_password=hash_password(password),
+            role=user_role,
+            tenant_id=tenant_id,
+        )
+        await provider.create_user(user)
+        console.print(f"[green]User '{username}' created with role '{role}' (id={user.id}).[/]")
+        # Generate token immediately
+        from agent_collab.security import generate_token
+
+        token = generate_token(user)
+        console.print(f"[cyan]Access token:[/] {token.access_token}")
+
+    asyncio.run(_create())
+
+
+@app.command()
+def security_login(
+    username: str = typer.Argument(..., help="Username."),
+    password: str = typer.Argument(..., help="Password."),
+) -> None:
+    """Authenticate and return an access token."""
+    from agent_collab.security import generate_token
+    from agent_collab.security.providers import InMemoryAuthProvider
+    import asyncio
+
+    provider = InMemoryAuthProvider()
+
+    async def _login() -> None:
+        user = await provider.authenticate(username, password)
+        if user is None:
+            progress.show_error("Authentication failed: invalid username or password.")
+            raise typer.Exit(code=1)
+        token = generate_token(user)
+        console.print(f"[green]Authenticated as '{username}'[/]")
+        console.print(f"[cyan]Access token:[/] {token.access_token}")
+        console.print(f"[dim]Expires in:[/] {token.expires_in}s")
+
+    asyncio.run(_login())
+
+
+@app.command()
+def security_verify_token(
+    token: str = typer.Argument(..., help="JWT access token to verify."),
+) -> None:
+    """Verify an access token and print its payload."""
+    from agent_collab.security import verify_token
+
+    payload = verify_token(token)
+    if payload is None:
+        progress.show_error("Token is invalid or expired.")
+        raise typer.Exit(code=1)
+
+    console.print("[green]Token is valid.[/]")
+    table = Table(title="Token Payload")
+    table.add_column("Field", style="cyan")
+    table.add_column("Value")
+    for key, value in payload.items():
+        table.add_row(str(key), str(value))
+    console.print(table)
+
+
+# ── Distributed commands ─────────────────────────────────────────────
+
+
+@app.command()
+def distributed_status() -> None:
+    """Show distributed execution status (workers & queue)."""
+    from agent_collab.distributed.queue import InMemoryTaskQueue, InMemoryWorkerManager
+    import asyncio
+
+    queue = InMemoryTaskQueue()
+    wm = InMemoryWorkerManager()
+
+    async def _status() -> None:
+        qsize = await queue.get_queue_size()
+        stats = await wm.get_worker_stats()
+
+        table = Table(title="Distributed Status")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", justify="right")
+        table.add_row("Queue Size", str(qsize))
+        table.add_row("Total Workers", str(stats.get("total_workers", 0)))
+        table.add_row("Idle Workers", str(stats.get("idle_workers", 0)))
+        table.add_row("Busy Workers", str(stats.get("busy_workers", 0)))
+        table.add_row("Total Capacity", str(stats.get("total_capacity", 0)))
+        table.add_row("Current Tasks", str(stats.get("current_tasks", 0)))
+        console.print(table)
+
+    asyncio.run(_status())
+
+
+# ── HITL commands ────────────────────────────────────────────────────
+
+
+@app.command()
+def hitl_pending() -> None:
+    """List pending approval and input requests."""
+    from agent_collab.hitl import InMemoryProvider
+    from agent_collab.hitl.nodes import HITLManager
+    import asyncio
+
+    provider = InMemoryProvider()
+    manager = HITLManager(provider)
+
+    async def _list() -> None:
+        approvals = manager.get_pending_approvals()
+        inputs = manager.get_pending_inputs()
+
+        if not approvals and not inputs:
+            console.print("[yellow]No pending HITL requests.[/]")
+            return
+
+        if approvals:
+            table = Table(title="Pending Approvals")
+            table.add_column("ID", style="cyan")
+            table.add_column("Task ID")
+            table.add_column("Title")
+            table.add_column("Status")
+            for req in approvals:
+                table.add_row(req.id[:8], req.task_id, req.title, req.status.value)
+            console.print(table)
+
+        if inputs:
+            table = Table(title="Pending Inputs")
+            table.add_column("ID", style="cyan")
+            table.add_column("Task ID")
+            table.add_column("Title")
+            table.add_column("Type")
+            table.add_column("Status")
+            for req in inputs:
+                table.add_row(req.id[:8], req.task_id, req.title, req.input_type.value, req.status.value)
+            console.print(table)
+
+    asyncio.run(_list())

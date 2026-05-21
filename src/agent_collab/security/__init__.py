@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import logging
+import os
 import secrets
 import uuid
 from abc import ABC, abstractmethod
@@ -186,7 +188,14 @@ class Token:
 
 
 class AuthProvider(ABC):
-    """Abstract base class for authentication providers."""
+    """Abstract base class for authentication providers.
+
+    .. note::
+
+        :class:`~agent_collab.security.providers.InMemoryAuthProvider` is
+        provided for development.  For production, implement this interface
+        backed by a database (e.g. PostgreSQL, MongoDB).
+    """
 
     @abstractmethod
     async def authenticate(self, username: str, password: str) -> User | None:
@@ -465,3 +474,139 @@ def has_permission(user_role: UserRole, required_permission: Permission) -> bool
     """
     permissions = ROLE_PERMISSIONS.get(user_role, set())
     return Permission.ADMIN_ALL in permissions or required_permission in permissions
+
+
+# ── JWT Token helpers (stdlib-only, no PyJWT dependency) ──────────────
+
+import base64
+import json as _json
+
+
+def _b64url_encode(data: bytes) -> str:
+    """Base64url-encode *data* without padding."""
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def _b64url_decode(s: str) -> bytes:
+    """Base64url-decode *s*, re-adding padding as needed."""
+    padding = 4 - len(s) % 4
+    if padding != 4:
+        s += "=" * padding
+    return base64.urlsafe_b64decode(s)
+
+
+# Module-level secret; override via ``set_token_secret()`` or env var.
+_token_secret: str = os.environ.get("AGENT_COLLAB_SECRET", "")
+
+
+def set_token_secret(secret: str) -> None:
+    """Set the HMAC signing secret for JWT tokens.
+
+    Call once at startup (e.g. from CLI or config loader).
+    If not called, a random secret is generated per-process.
+    """
+    global _token_secret
+    _token_secret = secret
+
+
+def _get_secret() -> str:
+    global _token_secret
+    if not _token_secret:
+        _token_secret = secrets.token_hex(32)
+    return _token_secret
+
+
+def generate_token(
+    user: User,
+    expires_in: int = 3600,
+    secret: str | None = None,
+) -> Token:
+    """Generate a signed JWT-like token for *user*.
+
+    The token is a compact ``header.payload.signature`` string signed
+    with HMAC-SHA256.  No external JWT library is required.
+
+    Args:
+        user: The authenticated user.
+        expires_in: Token lifetime in seconds (default 3600).
+        secret: Override signing secret.  Falls back to module secret.
+
+    Returns:
+        A :class:`Token` instance with ``access_token`` set.
+    """
+    secret = secret or _get_secret()
+    now = datetime.now(timezone.utc)
+
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {
+        "sub": user.id,
+        "username": user.username,
+        "tenant_id": user.tenant_id,
+        "role": user.role.value,
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(seconds=expires_in)).timestamp()),
+    }
+
+    header_b64 = _b64url_encode(_json.dumps(header, separators=(",", ":")).encode())
+    payload_b64 = _b64url_encode(_json.dumps(payload, separators=(",", ":")).encode())
+    signing_input = f"{header_b64}.{payload_b64}"
+
+    signature = hmac.new(
+        secret.encode(), signing_input.encode(), hashlib.sha256
+    ).digest()
+    signature_b64 = _b64url_encode(signature)
+
+    access_token = f"{signing_input}.{signature_b64}"
+
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=expires_in,
+        user_id=user.id,
+        tenant_id=user.tenant_id,
+        role=user.role,
+    )
+
+
+def verify_token(
+    access_token: str,
+    secret: str | None = None,
+) -> dict[str, Any] | None:
+    """Verify a JWT-like token and return its payload.
+
+    Args:
+        access_token: The compact ``header.payload.signature`` string.
+        secret: Override signing secret.  Falls back to module secret.
+
+    Returns:
+        The decoded payload dict if the signature is valid and the
+        token has not expired, or ``None`` on any failure.
+    """
+    secret = secret or _get_secret()
+    try:
+        parts = access_token.split(".")
+        if len(parts) != 3:
+            return None
+
+        header_b64, payload_b64, signature_b64 = parts
+        signing_input = f"{header_b64}.{payload_b64}"
+
+        expected_sig = hmac.new(
+            secret.encode(), signing_input.encode(), hashlib.sha256
+        ).digest()
+        actual_sig = _b64url_decode(signature_b64)
+
+        if not hmac.compare_digest(expected_sig, actual_sig):
+            return None
+
+        payload_bytes = _b64url_decode(payload_b64)
+        payload: dict[str, Any] = _json.loads(payload_bytes)
+
+        # Check expiration
+        if payload.get("exp", 0) < datetime.now(timezone.utc).timestamp():
+            return None
+
+        return payload
+
+    except Exception:
+        return None

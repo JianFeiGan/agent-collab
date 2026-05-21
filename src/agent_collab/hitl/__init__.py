@@ -97,6 +97,14 @@ class HITLProvider(ABC):
 
     HITL providers handle the communication with humans
     for approval and input requests.
+
+    .. note::
+
+        Two implementations are provided:
+        :class:`~agent_collab.hitl.InMemoryProvider` for testing, and
+        :class:`~agent_collab.hitl.WebhookProvider` for webhook-based
+        notification.  For production, consider implementing a provider
+        backed by Slack, Discord, or a persistent database.
     """
 
     @abstractmethod

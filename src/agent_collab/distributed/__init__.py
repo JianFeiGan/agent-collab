@@ -102,7 +102,14 @@ class TaskResult:
 
 
 class TaskQueue(ABC):
-    """Abstract base class for task queues."""
+    """Abstract base class for task queues.
+
+    .. note::
+
+        An in-memory implementation (:class:`~agent_collab.distributed.queue.InMemoryTaskQueue`)
+        is provided for development and testing.  For production use, implement
+        this interface backed by a persistent store (e.g. Redis, PostgreSQL).
+    """
 
     @abstractmethod
     async def enqueue(self, task: DistributedTask) -> bool:
@@ -177,9 +184,24 @@ class TaskQueue(ABC):
             The queue size.
         """
 
+    @abstractmethod
+    async def get_all_tasks(self) -> list[DistributedTask]:
+        """Get all tasks regardless of status.
+
+        Returns:
+            List of all tasks in the queue.
+        """
+
 
 class WorkerManager(ABC):
-    """Abstract base class for worker managers."""
+    """Abstract base class for worker managers.
+
+    .. note::
+
+        An in-memory implementation (:class:`~agent_collab.distributed.queue.InMemoryWorkerManager`)
+        is provided for development and testing.  For production use, implement
+        this interface backed by a persistent store.
+    """
 
     @abstractmethod
     async def register_worker(self, worker: WorkerInfo) -> bool:
