@@ -1,0 +1,142 @@
+{
+  "tasks_10": {
+    "task_count": 10,
+    "parsing": {
+      "test": "workflow_parsing",
+      "task_count": 10,
+      "average_parse_time_seconds": 0.0018550583918113261,
+      "min_parse_time_seconds": 0.0017802079964894801,
+      "max_parse_time_seconds": 0.0020258339936845005,
+      "std_dev_seconds": 9.855470564952578e-05,
+      "status": "success"
+    },
+    "scheduling": {
+      "test": "scheduler_performance",
+      "task_count": 10,
+      "average_schedule_time_seconds": 1.344159827567637e-05,
+      "min_schedule_time_seconds": 8.833012543618679e-06,
+      "max_schedule_time_seconds": 2.4792010663077235e-05,
+      "std_dev_seconds": 6.557071213469894e-06,
+      "execution_levels": 4,
+      "parallelizable_tasks": 8,
+      "max_parallelism": 6,
+      "status": "success"
+    },
+    "memory": {
+      "test": "memory_usage",
+      "baseline_mb": 32.75,
+      "after_parse_mb": 32.8125,
+      "after_schedule_mb": 32.8125,
+      "parse_overhead_mb": 0.0625,
+      "schedule_overhead_mb": 0.0,
+      "total_overhead_mb": 0.0625,
+      "task_count": 10,
+      "status": "success"
+    }
+  },
+  "tasks_25": {
+    "task_count": 25,
+    "parsing": {
+      "test": "workflow_parsing",
+      "task_count": 25,
+      "average_parse_time_seconds": 0.004101700003957376,
+      "min_parse_time_seconds": 0.004041292006149888,
+      "max_parse_time_seconds": 0.004248625016771257,
+      "std_dev_seconds": 8.646114035284806e-05,
+      "status": "success"
+    },
+    "scheduling": {
+      "test": "scheduler_performance",
+      "task_count": 25,
+      "average_schedule_time_seconds": 1.8650200217962265e-05,
+      "min_schedule_time_seconds": 1.5958008589223027e-05,
+      "max_schedule_time_seconds": 2.416700590401888e-05,
+      "std_dev_seconds": 3.468013884050334e-06,
+      "execution_levels": 2,
+      "parallelizable_tasks": 25,
+      "max_parallelism": 18,
+      "status": "success"
+    },
+    "memory": {
+      "test": "memory_usage",
+      "baseline_mb": 32.984375,
+      "after_parse_mb": 32.984375,
+      "after_schedule_mb": 32.984375,
+      "parse_overhead_mb": 0.0,
+      "schedule_overhead_mb": 0.0,
+      "total_overhead_mb": 0.0,
+      "task_count": 25,
+      "status": "success"
+    }
+  },
+  "tasks_50": {
+    "task_count": 50,
+    "parsing": {
+      "test": "workflow_parsing",
+      "task_count": 50,
+      "average_parse_time_seconds": 0.007897349790437148,
+      "min_parse_time_seconds": 0.00786983297439292,
+      "max_parse_time_seconds": 0.007943833974422887,
+      "std_dev_seconds": 2.9041866706805427e-05,
+      "status": "success"
+    },
+    "scheduling": {
+      "test": "scheduler_performance",
+      "task_count": 50,
+      "average_schedule_time_seconds": 3.499179729260504e-05,
+      "min_schedule_time_seconds": 3.2666983315721154e-05,
+      "max_schedule_time_seconds": 3.9875012589618564e-05,
+      "std_dev_seconds": 2.900744583252265e-06,
+      "execution_levels": 4,
+      "parallelizable_tasks": 49,
+      "max_parallelism": 33,
+      "status": "success"
+    },
+    "memory": {
+      "test": "memory_usage",
+      "baseline_mb": 33.171875,
+      "after_parse_mb": 33.171875,
+      "after_schedule_mb": 33.171875,
+      "parse_overhead_mb": 0.0,
+      "schedule_overhead_mb": 0.0,
+      "total_overhead_mb": 0.0,
+      "task_count": 50,
+      "status": "success"
+    }
+  },
+  "tasks_100": {
+    "task_count": 100,
+    "parsing": {
+      "test": "workflow_parsing",
+      "task_count": 100,
+      "average_parse_time_seconds": 0.015435983397765085,
+      "min_parse_time_seconds": 0.015367291984148324,
+      "max_parse_time_seconds": 0.015578791993902996,
+      "std_dev_seconds": 8.770377374034589e-05,
+      "status": "success"
+    },
+    "scheduling": {
+      "test": "scheduler_performance",
+      "task_count": 100,
+      "average_schedule_time_seconds": 6.390800699591636e-05,
+      "min_schedule_time_seconds": 5.9833022532984614e-05,
+      "max_schedule_time_seconds": 7.287500193342566e-05,
+      "std_dev_seconds": 5.341719809762187e-06,
+      "execution_levels": 5,
+      "parallelizable_tasks": 99,
+      "max_parallelism": 78,
+      "status": "success"
+    },
+    "memory": {
+      "test": "memory_usage",
+      "baseline_mb": 33.859375,
+      "after_parse_mb": 33.953125,
+      "after_schedule_mb": 33.953125,
+      "parse_overhead_mb": 0.09375,
+      "schedule_overhead_mb": 0.0,
+      "total_overhead_mb": 0.09375,
+      "task_count": 100,
+      "status": "success"
+    }
+  }
+}
