@@ -29,6 +29,15 @@ class _StubAgent(BaseAgent):
     def is_available(self) -> bool:
         return True
 
+    def get_cli_version(self) -> str | None:
+        return "1.0.0"
+
+    def get_supported_arguments(self) -> list[str]:
+        return ["--help"]
+
+    def check_api_key(self) -> tuple[bool, str]:
+        return True, "API key configured"
+
 
 class _StubAgentPlugin(AgentPlugin):
     name: str = "stub-agent"

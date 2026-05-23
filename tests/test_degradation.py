@@ -20,6 +20,8 @@ class _FakeAgent(BaseAgent):
     def __init__(self, output: str = "ok", success: bool = True) -> None:
         self._output = output
         self._success = success
+        self._capabilities_cache = None
+
 
     async def execute(self, prompt, workdir, allowed_tools, timeout=600):  # type: ignore[override]
         return AgentResult(success=self._success, output=self._output)
@@ -29,6 +31,15 @@ class _FakeAgent(BaseAgent):
 
     def is_available(self) -> bool:  # type: ignore[override]
         return True
+
+    def get_cli_version(self) -> str | None:  # type: ignore[override]
+        return "0.0.0-test"
+
+    def get_supported_arguments(self) -> list[str]:  # type: ignore[override]
+        return []
+
+    def check_api_key(self) -> tuple[bool, str]:  # type: ignore[override]
+        return True, "test key"
 
 
 # ── DegradationHandler tests ──────────────────────────────────────

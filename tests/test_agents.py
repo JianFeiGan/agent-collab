@@ -1,4 +1,4 @@
-"""Tests for agent adapters."""
+"""Tests for agent adapters with enhanced capability detection."""
 
 from __future__ import annotations
 
@@ -51,6 +51,15 @@ class TestBaseAgentInit:
             def is_available(self) -> bool:  # type: ignore[override]
                 return False
 
+            def get_cli_version(self) -> str | None:  # type: ignore[override]
+                return None
+
+            def get_supported_arguments(self) -> list[str]:  # type: ignore[override]
+                return []
+
+            def check_api_key(self) -> tuple[bool, str]:  # type: ignore[override]
+                return False, "not configured"
+
         agent = DummyAgent()
         assert agent.resume_mode == "none"
         assert agent.session_id is None
@@ -67,6 +76,15 @@ class TestBaseAgentInit:
 
             def is_available(self) -> bool:  # type: ignore[override]
                 return False
+
+            def get_cli_version(self) -> str | None:  # type: ignore[override]
+                return None
+
+            def get_supported_arguments(self) -> list[str]:  # type: ignore[override]
+                return []
+
+            def check_api_key(self) -> tuple[bool, str]:  # type: ignore[override]
+                return False, "not configured"
 
         agent = DummyAgent(resume_mode="resume", session_id="abc-123")
         assert agent.resume_mode == "resume"
@@ -254,3 +272,199 @@ def test_is_available_depends_on_path(monkeypatch: pytest.MonkeyPatch) -> None:
     assert not CodexAgent().is_available()
     assert not AiderAgent().is_available()
     assert not OpenCodeAgent().is_available()
+
+
+# ---------------------------------------------------------------------------
+# Enhanced capability detection tests
+# ---------------------------------------------------------------------------
+
+
+class TestCapabilityDetection:
+    """Tests for enhanced agent capability detection."""
+
+    def test_get_cli_version_returns_string_or_none(self) -> None:
+        """get_cli_version returns string or None."""
+        agents = [ClaudeCodeAgent(), CodexAgent(), AiderAgent(), OpenCodeAgent()]
+        for agent in agents:
+            version = agent.get_cli_version()
+            assert version is None or isinstance(version, str)
+
+    def test_get_supported_arguments_returns_list(self) -> None:
+        """get_supported_arguments returns list of strings."""
+        agents = [ClaudeCodeAgent(), CodexAgent(), AiderAgent(), OpenCodeAgent()]
+        for agent in agents:
+            args = agent.get_supported_arguments()
+            assert isinstance(args, list)
+            assert all(isinstance(arg, str) for arg in args)
+            assert len(args) > 0
+
+    def test_check_api_key_returns_tuple(self) -> None:
+        """check_api_key returns (bool, str) tuple."""
+        agents = [ClaudeCodeAgent(), CodexAgent(), AiderAgent(), OpenCodeAgent()]
+        for agent in agents:
+            result = agent.check_api_key()
+            assert isinstance(result, tuple)
+            assert len(result) == 2
+            assert isinstance(result[0], bool)
+            assert isinstance(result[1], str)
+
+    def test_claude_code_supported_arguments(self) -> None:
+        """Claude Code agent reports correct supported arguments."""
+        agent = ClaudeCodeAgent()
+        args = agent.get_supported_arguments()
+        assert "-p" in args
+        assert "--output-format" in args
+        assert "--permission-mode" in args
+        assert "--max-turns" in args
+        assert "--continue" in args
+        assert "--resume" in args
+        assert "--allowedTools" in args
+
+    def test_codex_supported_arguments(self) -> None:
+        """Codex agent reports correct supported arguments."""
+        agent = CodexAgent()
+        args = agent.get_supported_arguments()
+        assert "--quiet" in args
+        assert "--full-auto" in args
+        assert "--model" in args
+        assert "--provider" in args
+        assert "--api-key" in args
+
+    def test_aider_supported_arguments(self) -> None:
+        """Aider agent reports correct supported arguments."""
+        agent = AiderAgent()
+        args = agent.get_supported_arguments()
+        assert "--yes" in args
+        assert "--no-auto-commits" in args
+        assert "--no-git" in args
+        assert "--message" in args
+        assert "--model" in args
+
+    def test_opencode_supported_arguments(self) -> None:
+        """OpenCode agent reports correct supported arguments."""
+        agent = OpenCodeAgent()
+        args = agent.get_supported_arguments()
+        assert "--non-interactive" in args
+        assert "--model" in args
+        assert "--provider" in args
+
+    def test_check_api_key_with_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """check_api_key detects environment variables."""
+        # Test Claude Code with ANTHROPIC_API_KEY (needs >12 chars for masking)
+        test_key = "abcdefghijklmnopqrst"
+        monkeypatch.setenv("ANTHROPIC_API_KEY", test_key)
+        agent = ClaudeCodeAgent()
+        configured, message = agent.check_api_key()
+        assert configured is True
+        assert "ANTHROPIC_API_KEY" in message
+        assert "abcdefgh" in message  # First 8 chars of key
+
+    def test_check_api_key_without_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """check_api_key reports missing environment variables."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+        agent = ClaudeCodeAgent()
+        configured, message = agent.check_api_key()
+        assert configured is False
+        assert "not set" in message.lower() or "not found" in message.lower()
+
+    def test_codex_check_api_key_uses_instance_key(self) -> None:
+        """Codex check_api_key uses instance api_key if set."""
+        agent = CodexAgent(api_key="abcdefghijklmnopqrst")
+        configured, message = agent.check_api_key()
+        assert configured is True
+        assert "OPENAI_API_KEY" in message
+
+    def test_get_capabilities_returns_dict(self) -> None:
+        """get_capabilities returns complete capability dictionary."""
+        agent = ClaudeCodeAgent()
+        caps = agent.get_capabilities()
+
+        assert isinstance(caps, dict)
+        assert "name" in caps
+        assert "available" in caps
+        assert "version" in caps
+        assert "api_key_configured" in caps
+        assert "api_key_message" in caps
+        assert "supported_arguments" in caps
+        assert "resume_modes" in caps
+        assert "supports_json_output" in caps
+
+        assert caps["name"] == "claude-code"
+        assert isinstance(caps["available"], bool)
+        assert isinstance(caps["api_key_configured"], bool)
+        assert isinstance(caps["api_key_message"], str)
+        assert isinstance(caps["supported_arguments"], list)
+        assert isinstance(caps["resume_modes"], list)
+        assert isinstance(caps["supports_json_output"], bool)
+
+    def test_claude_code_capabilities_details(self) -> None:
+        """Claude Code capabilities include specific features."""
+        agent = ClaudeCodeAgent()
+        caps = agent.get_capabilities()
+
+        assert caps["supports_json_output"] is True
+        assert "none" in caps["resume_modes"]
+        assert "continue" in caps["resume_modes"]
+        assert "resume" in caps["resume_modes"]
+
+    def test_codex_capabilities_details(self) -> None:
+        """Codex capabilities include specific features."""
+        agent = CodexAgent()
+        caps = agent.get_capabilities()
+
+        assert caps["name"] == "codex"
+        assert "none" in caps["resume_modes"]
+        assert "continue" in caps["resume_modes"]
+        assert "resume" in caps["resume_modes"]
+
+    def test_aider_capabilities_details(self) -> None:
+        """Aider capabilities include specific features."""
+        agent = AiderAgent()
+        caps = agent.get_capabilities()
+
+        assert caps["name"] == "aider"
+        assert "none" in caps["resume_modes"]
+        assert "continue" in caps["resume_modes"]
+        assert "resume" in caps["resume_modes"]
+
+    def test_capabilities_cache(self) -> None:
+        """Capabilities are cached after first call."""
+        agent = ClaudeCodeAgent()
+        caps1 = agent.get_capabilities()
+        caps2 = agent.get_capabilities()
+        assert caps1 is caps2  # Same object reference due to caching
+
+    def test_get_cli_version_with_mock(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """get_cli_version parses version output correctly."""
+        import subprocess
+
+        class MockCompletedProcess:
+            def __init__(self, returncode: int, stdout: str) -> None:
+                self.returncode = returncode
+                self.stdout = stdout
+
+        def mock_run(*args, **kwargs):  # type: ignore[no-untyped-def]
+            return MockCompletedProcess(0, "claude 1.2.3")
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        monkeypatch.setattr("shutil.which", lambda _: "/usr/bin/claude")
+
+        agent = ClaudeCodeAgent()
+        version = agent.get_cli_version()
+        assert version == "1.2.3"
+
+    def test_get_cli_version_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """get_cli_version returns None on failure."""
+        import subprocess
+
+        def mock_run(*args, **kwargs):  # type: ignore[no-untyped-def]
+            raise FileNotFoundError
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        agent = ClaudeCodeAgent()
+        version = agent.get_cli_version()
+        assert version is None
