@@ -107,6 +107,10 @@ async def _run_workflow(config, scheduler, levels) -> tuple[int, int]:
     total_tasks = 0
 
     for level_idx, task_ids in enumerate(levels):
+        if executor.is_cancelled():
+            progress.show_workflow_cancelled()
+            break
+
         progress.show_level_start(level_idx, task_ids)
         tasks = [scheduler.tasks[tid] for tid in task_ids]
         results = await executor.execute_level(tasks)
@@ -152,6 +156,9 @@ def run(
     except ValueError as exc:
         progress.show_error(str(exc))
         raise typer.Exit(code=1) from exc
+    except KeyboardInterrupt:
+        console.print("\n[yellow]⚠[/] Workflow execution cancelled by user")
+        raise typer.Exit(code=130) from None
 
     if total_failed > 0:
         raise typer.Exit(code=1)

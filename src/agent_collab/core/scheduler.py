@@ -22,6 +22,8 @@ class TaskScheduler:
         self.graph: dict[str, set[str]] = self._build_dag(tasks)
         self.context = context or {}
         self._cancelled: bool = False
+        self._execution_history: list[dict[str, object]] = []
+        self._task_stats: dict[str, dict[str, object]] = {}
 
     def _should_run(self, task: TaskConfig) -> bool:
         """Return True if the task should execute based on its ``when`` clause.
@@ -164,3 +166,54 @@ class TaskScheduler:
             queue = next_queue
 
         return levels
+
+    def record_task_execution(self, task_id: str, duration: float, success: bool) -> None:
+        """Record task execution statistics.
+
+        Args:
+            task_id: The task ID.
+            duration: Execution duration in seconds.
+            success: Whether the task succeeded.
+        """
+        if task_id not in self._task_stats:
+            self._task_stats[task_id] = {
+                "total_executions": 0,
+                "successful_executions": 0,
+                "failed_executions": 0,
+                "total_duration": 0.0,
+                "average_duration": 0.0,
+            }
+
+        stats = self._task_stats[task_id]
+        stats["total_executions"] = stats["total_executions"] + 1
+        stats["total_duration"] = stats["total_duration"] + duration
+        stats["average_duration"] = stats["total_duration"] / stats["total_executions"]
+
+        if success:
+            stats["successful_executions"] = stats["successful_executions"] + 1
+        else:
+            stats["failed_executions"] = stats["failed_executions"] + 1
+
+        self._execution_history.append({
+            "task_id": task_id,
+            "duration": duration,
+            "success": success,
+            "timestamp": __import__("time").time(),
+        })
+
+    def get_task_statistics(self, task_id: str | None = None) -> dict[str, object]:
+        """Get task execution statistics.
+
+        Args:
+            task_id: Optional task ID. If not provided, returns stats for all tasks.
+
+        Returns:
+            Dictionary containing task statistics.
+        """
+        if task_id is not None:
+            return self._task_stats.get(task_id, {})
+        return self._task_stats
+
+    def get_execution_history(self) -> list[dict[str, object]]:
+        """Get the execution history."""
+        return list(self._execution_history)

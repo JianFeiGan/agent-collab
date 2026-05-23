@@ -27,6 +27,11 @@ try:
 except ImportError:  # pragma: no cover
     ExecutionHistory = None  # type: ignore[assignment,misc]
 
+try:
+    from agent_collab.storage.log_manager import LogManager
+except ImportError:  # pragma: no cover
+    LogManager = None  # type: ignore[assignment,misc]
+
 
 @dataclass
 class ExecutionResult:
@@ -54,6 +59,7 @@ class TaskExecutor:
         checkpoint_manager: CheckpointManager | None = None,
         workflow_name: str = "",
         hook_registry: HookRegistry | None = None,
+        log_manager: LogManager | None = None,
     ) -> None:
         self.agents = agents
         self.agent_configs = agent_configs
@@ -67,9 +73,22 @@ class TaskExecutor:
         self.degradation_handler = DegradationHandler()
         self._execution_id: int | None = None
         self.hook_registry = hook_registry or HookRegistry()
+        self._cancelled: bool = False
+        self._running_tasks: dict[str, asyncio.Task] = {}
+        self._cancel_event: asyncio.Event = asyncio.Event()
+        self.log_manager = log_manager
+        self._current_parallel: int = strategy.max_parallel
+        self._task_durations: list[float] = []
+        self._adaptive_enabled: bool = True
 
     async def execute_task(self, task: TaskConfig) -> AgentResult:
         """Execute a single task with retry logic and degradation support."""
+        if self._cancelled:
+            return AgentResult(
+                success=False,
+                output="Task cancelled",
+            )
+
         agent_cfg = self.agent_configs[task.agent]
         agent = self.agents[task.agent]
 
@@ -106,7 +125,7 @@ class TaskExecutor:
 
         try:
             start = time.monotonic()
-            result = await self._run_with_retries(
+            result, attempt = await self._run_with_retries(
                 agent=agent,
                 prompt=resolved_prompt,
                 workdir=agent_cfg.workdir,
@@ -125,7 +144,25 @@ class TaskExecutor:
                 "status": "success" if result.success else "failed",
                 "duration": round(duration, 3),
                 "output_summary": result.output[:200] if result.output else "",
+                "timestamp": time.time(),
+                "tokens_used": result.tokens_used,
+                "files_changed": result.files_changed,
+                "attempt": attempt,
             })
+
+            # Persist to LogManager if available
+            if self.log_manager is not None:
+                self.log_manager.add_from_dict({
+                    "task_id": task.id,
+                    "agent": task.agent,
+                    "status": "success" if result.success else "failed",
+                    "duration": round(duration, 3),
+                    "output_summary": result.output[:200] if result.output else "",
+                    "timestamp": time.time(),
+                    "tokens_used": result.tokens_used,
+                    "files_changed": result.files_changed,
+                    "attempt": attempt,
+                })
 
             # Apply degradation policy on failure
             if not result.success and task.degradation is not None:
@@ -163,17 +200,26 @@ class TaskExecutor:
         allowed_tools: list[str],
         timeout: int,
         task: TaskConfig | None = None,
-    ) -> AgentResult:
+    ) -> tuple[AgentResult, int]:
         """Run an agent with exponential backoff retry logic.
 
         Uses exponential backoff with jitter: ``base_delay * (2 ** attempt)``
         capped at 60 seconds, with a random jitter of ±25%.
+
+        Returns:
+            Tuple of (AgentResult, attempt_number).
         """
         max_attempts = 1 + (self.strategy.max_retries if self.strategy.retry_on_failure else 0)
         last_result: AgentResult | None = None
         base_delay = self.strategy.retry_delay
 
         for attempt in range(max_attempts):
+            if self._cancelled:
+                return AgentResult(
+                    success=False,
+                    output="Task cancelled during retry",
+                ), attempt + 1
+
             result = await agent.execute(
                 prompt=prompt,
                 workdir=workdir,
@@ -181,7 +227,7 @@ class TaskExecutor:
                 timeout=timeout,
             )
             if result.success:
-                return result
+                return result, attempt + 1
             last_result = result
 
             # Wait with exponential backoff + jitter before next retry
@@ -192,7 +238,7 @@ class TaskExecutor:
                 delay = max(0.1, delay)  # Ensure positive delay
                 await asyncio.sleep(delay)
 
-        return last_result  # type: ignore[return-value]
+        return last_result, max_attempts  # type: ignore[return-value]
 
     def _apply_degradation(
         self, task: TaskConfig, result: AgentResult
@@ -230,20 +276,110 @@ class TaskExecutor:
 
     async def execute_level(self, tasks: list[TaskConfig]) -> dict[str, AgentResult]:
         """Execute a group of independent tasks in parallel."""
-        semaphore = asyncio.Semaphore(self.strategy.max_parallel)
+        if self._cancelled:
+            return {}
+
+        semaphore = asyncio.Semaphore(self._current_parallel)
 
         async def _run(task: TaskConfig) -> tuple[str, AgentResult]:
             async with semaphore:
+                if self._cancelled:
+                    return task.id, AgentResult(
+                        success=False,
+                        output="Task cancelled",
+                    )
+                start = time.monotonic()
                 result = await self.execute_task(task)
+                duration = time.monotonic() - start
+                self._adjust_concurrency(duration)
                 return task.id, result
 
-        results = await asyncio.gather(*(_run(t) for t in tasks))
-        return dict(results)
+        # Create tasks and track them
+        running_tasks = []
+        for task in tasks:
+            if self._cancelled:
+                break
+            asyncio_task = asyncio.create_task(_run(task))
+            self._running_tasks[task.id] = asyncio_task
+            running_tasks.append(asyncio_task)
+
+        # Wait for all tasks or cancellation
+        results = await asyncio.gather(*running_tasks, return_exceptions=True)
+
+        # Clean up completed tasks
+        for task in tasks:
+            self._running_tasks.pop(task.id, None)
+
+        # Filter out exceptions and return results
+        collected: dict[str, AgentResult] = {}
+        for result in results:
+            if isinstance(result, Exception):
+                # Handle cancelled tasks
+                continue
+            if isinstance(result, tuple) and len(result) == 2:
+                task_id, agent_result = result
+                collected[task_id] = agent_result
+
+        return collected
 
     def get_execution_log(self) -> list[dict[str, object]]:
         """Return the full execution log recorded so far."""
         return list(self.execution_log)
 
+    def cancel_all(self) -> None:
+        """Cancel all pending and running tasks.
+
+        Sets the cancelled flag and cancels all running asyncio tasks.
+        """
+        self._cancelled = True
+        self._cancel_event.set()
+        for task_id, task in self._running_tasks.items():
+            if not task.done():
+                task.cancel()
+
+    def is_cancelled(self) -> bool:
+        """Check if execution has been cancelled."""
+        return self._cancelled
+
+    async def wait_for_cancel(self) -> None:
+        """Wait for cancellation signal."""
+        await self._cancel_event.wait()
+
+    def _adjust_concurrency(self, duration: float) -> None:
+        """Adjust concurrency based on task duration.
+
+        Uses an adaptive algorithm:
+        - If tasks are completing quickly (< 10s), increase concurrency
+        - If tasks are slow (> 60s), decrease concurrency
+        - Respects min/max limits from strategy
+
+        Args:
+            duration: Duration of the last completed task.
+        """
+        if not self._adaptive_enabled:
+            return
+
+        self._task_durations.append(duration)
+        if len(self._task_durations) < 3:
+            return
+
+        # Calculate moving average of recent durations
+        recent = self._task_durations[-5:]
+        avg_duration = sum(recent) / len(recent)
+
+        # Adjust concurrency based on average duration
+        if avg_duration < 10.0 and self._current_parallel < self.strategy.max_parallel * 2:
+            self._current_parallel = min(self._current_parallel + 1, self.strategy.max_parallel * 2)
+        elif avg_duration > 60.0 and self._current_parallel > 1:
+            self._current_parallel = max(self._current_parallel - 1, 1)
+
+    def get_current_concurrency(self) -> int:
+        """Get the current concurrency level."""
+        return self._current_parallel
+
+    def set_adaptive_concurrency(self, enabled: bool) -> None:
+        """Enable or disable adaptive concurrency control."""
+        self._adaptive_enabled = enabled
     def export_log(self, path: str) -> None:
         """Export the execution log to a JSON file.
 

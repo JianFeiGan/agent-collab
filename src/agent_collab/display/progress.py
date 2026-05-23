@@ -49,6 +49,10 @@ class ProgressDisplay:
         table.add_row("Duration", f"{duration:.1f}s")
         console.print(Panel(table, title="[bold blue]Workflow Complete[/]", border_style="blue"))
 
+    def show_workflow_cancelled(self) -> None:
+        """Print a message when workflow is cancelled."""
+        console.print("\n[yellow]⚠[/] Workflow execution cancelled")
+
     def show_error(self, message: str) -> None:
         """Print an error message."""
         console.print(f"[bold red]Error:[/] {message}")
