@@ -103,6 +103,9 @@ class BaseAgent(ABC):
             - supported_arguments: List of supported CLI args
             - resume_modes: Supported resume modes
             - supports_json_output: Whether agent supports JSON output
+            - supports_model_selection: Whether agent supports model selection
+            - supports_multi_file_editing: Whether agent supports multi-file editing
+            - max_concurrent_tasks: Maximum concurrent tasks (None for unlimited)
         """
         if self._capabilities_cache is not None:
             return self._capabilities_cache
@@ -120,6 +123,9 @@ class BaseAgent(ABC):
             "supported_arguments": arguments,
             "resume_modes": self._get_resume_modes(),
             "supports_json_output": self._supports_json_output(),
+            "supports_model_selection": self._supports_model_selection(),
+            "supports_multi_file_editing": self._supports_multi_file_editing(),
+            "max_concurrent_tasks": self._get_max_concurrent_tasks(),
         }
 
         self._capabilities_cache = capabilities
@@ -140,3 +146,27 @@ class BaseAgent(ABC):
             True if JSON output is supported, False otherwise.
         """
         return False
+
+    def _supports_model_selection(self) -> bool:
+        """Check if agent supports model selection.
+
+        Returns:
+            True if model selection is supported, False otherwise.
+        """
+        return False
+
+    def _supports_multi_file_editing(self) -> bool:
+        """Check if agent supports multi-file editing.
+
+        Returns:
+            True if multi-file editing is supported, False otherwise.
+        """
+        return False
+
+    def _get_max_concurrent_tasks(self) -> int | None:
+        """Get maximum concurrent tasks for this agent.
+
+        Returns:
+            Maximum number of concurrent tasks, or None for unlimited.
+        """
+        return None

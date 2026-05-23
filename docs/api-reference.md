@@ -13,6 +13,79 @@
 
 ## 核心模块
 
+### agent_collab.agents.base
+
+#### BaseAgent
+
+```python
+class BaseAgent(ABC):
+    """Abstract base class for all agent adapters."""
+
+    def __init__(
+        self,
+        resume_mode: str = "none",
+        session_id: str | None = None,
+    ) -> None: ...
+
+    @abstractmethod
+    async def execute(
+        self,
+        prompt: str,
+        workdir: str,
+        allowed_tools: list[str],
+        timeout: int = 600,
+    ) -> AgentResult: ...
+
+    @abstractmethod
+    def name(self) -> str: ...
+
+    @abstractmethod
+    def is_available(self) -> bool: ...
+
+    @abstractmethod
+    def get_cli_version(self) -> str | None: ...
+
+    @abstractmethod
+    def get_supported_arguments(self) -> list[str]: ...
+
+    @abstractmethod
+    def check_api_key(self) -> tuple[bool, str]: ...
+
+    def get_capabilities(self) -> dict[str, Any]: ...
+```
+
+**能力检测方法：**
+
+`get_capabilities()` 返回包含以下字段的字典：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `name` | `str` | Agent 名称 |
+| `available` | `bool` | CLI 是否已安装 |
+| `version` | `str \| None` | CLI 版本号 |
+| `api_key_configured` | `bool` | API key 是否已配置 |
+| `api_key_message` | `str` | API key 状态详情 |
+| `supported_arguments` | `list[str]` | 支持的 CLI 参数 |
+| `resume_modes` | `list[str]` | 支持的恢复模式 |
+| `supports_json_output` | `bool` | 是否支持 JSON 输出 |
+| `supports_model_selection` | `bool` | 是否支持模型选择 |
+| `supports_multi_file_editing` | `bool` | 是否支持多文件编辑 |
+| `max_concurrent_tasks` | `int \| None` | 最大并发任务数 |
+
+#### AgentResult
+
+```python
+@dataclass
+class AgentResult:
+    """Result returned by an agent after executing a task."""
+
+    success: bool
+    output: str
+    files_changed: list[str] = field(default_factory=list)
+    duration_seconds: float = 0.0
+    tokens_used: int | None = None
+```
+
 ### agent_collab.core.workflow
 
 #### TaskConfig

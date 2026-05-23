@@ -184,3 +184,11 @@ class ClaudeCodeAgent(BaseAgent):
             True as Claude Code supports JSON output.
         """
         return True
+
+    def _supports_model_selection(self) -> bool:
+        """Claude Code supports model selection.
+
+        Returns:
+            True as Claude Code supports model selection via --model.
+        """
+        return True

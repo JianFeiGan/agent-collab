@@ -36,6 +36,31 @@ Agent 适配器是 AgentCollab 与外部 AI 编程工具之间的桥梁。每个
 | `aider` | `aider` | `pip install aider-chat` |
 | `opencode` | `opencode` | `go install github.com/opencode-ai/opencode@latest` |
 
+### 能力检测
+
+所有适配器都支持能力检测，可以通过 `get_capabilities()` 方法获取详细信息：
+
+```python
+agent = ClaudeCodeAgent()
+caps = agent.get_capabilities()
+
+# 基本信息
+print(caps["name"])                    # "claude-code"
+print(caps["available"])               # True/False
+print(caps["version"])                 # "1.2.3" or None
+
+# 功能支持
+print(caps["resume_modes"])            # ["none", "continue", "resume"]
+print(caps["supports_json_output"])    # True/False
+print(caps["supports_model_selection"])  # True/False
+print(caps["supports_multi_file_editing"])  # True/False
+print(caps["max_concurrent_tasks"])    # None (unlimited) or int
+
+# API 配置
+print(caps["api_key_configured"])      # True/False
+print(caps["api_key_message"])         # "ANTHROPIC_API_KEY configured: abc...xyz"
+```
+
 ---
 
 ## 架构概览

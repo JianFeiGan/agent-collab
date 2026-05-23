@@ -216,3 +216,19 @@ class AiderAgent(BaseAgent):
             List of supported resume mode strings.
         """
         return ["none", "continue", "resume"]
+
+    def _supports_model_selection(self) -> bool:
+        """Aider supports model selection.
+
+        Returns:
+            True as Aider supports model selection via --model.
+        """
+        return True
+
+    def _supports_multi_file_editing(self) -> bool:
+        """Aider supports multi-file editing.
+
+        Returns:
+            True as Aider supports multi-file editing via --file.
+        """
+        return True

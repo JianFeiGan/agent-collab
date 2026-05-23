@@ -114,6 +114,26 @@ agent-collab list-agents
 └─────────────┴─────────────┴───────────┘
 ```
 
+**详细模式：**
+
+使用 `--verbose` 或 `-v` 选项可以显示更详细的 Agent 信息：
+
+```bash
+agent-collab list-agents --verbose
+```
+
+**详细输出示例：**
+```
+┌─────────────┬─────────────┬───────────┬──────────┬───────────┬─────────────────┐
+│ Name        │ Status      │ CLI Tool  │ Version  │ JSON      │ Resume Modes    │
+├─────────────┼─────────────┼───────────┼──────────┼───────────┼─────────────────┤
+│ claude-code │ available   │ claude    │ 1.2.3    │ ✓         │ none,continue,..│
+│ codex       │ available   │ codex     │ 0.5.0    │ ✗         │ none,continue,..│
+│ aider       │ not found   │ aider     │ -        │ ✗         │ none,continue,..│
+│ opencode    │ available   │ opencode  │ 0.3.1    │ ✗         │ none,continue,..│
+└─────────────┴─────────────┴───────────┴──────────┴───────────┴─────────────────┘
+```
+
 ### 3. 检查点管理
 
 #### `checkpoints` - 管理检查点

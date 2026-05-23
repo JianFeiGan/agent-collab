@@ -204,3 +204,11 @@ class CodexAgent(BaseAgent):
             List of supported resume mode strings.
         """
         return ["none", "continue", "resume"]
+
+    def _supports_model_selection(self) -> bool:
+        """Codex supports model selection.
+
+        Returns:
+            True as Codex supports model selection via --model.
+        """
+        return True

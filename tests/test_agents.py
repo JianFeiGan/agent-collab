@@ -231,6 +231,50 @@ async def test_opencode_cli_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_opencode_resume_continue(monkeypatch: pytest.MonkeyPatch) -> None:
+    """resume_mode='continue' appends --continue to the CLI command."""
+    agent = OpenCodeAgent(resume_mode="continue")
+    captured_cmd: list[str] = []
+
+    async def fake_exec(*args, **kwargs):  # type: ignore[no-untyped-def]
+        captured_cmd.extend(args)
+        return _StubProcess(0, b"resumed")
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+    result = await agent.execute("continue task", ".", [])
+    assert result.success
+    assert "--continue" in captured_cmd
+
+
+@pytest.mark.asyncio
+async def test_opencode_resume_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    """resume_mode='resume' appends --resume {session_id}."""
+    agent = OpenCodeAgent(resume_mode="resume", session_id="sess-42")
+    captured_cmd: list[str] = []
+
+    async def fake_exec(*args, **kwargs):  # type: ignore[no-untyped-def]
+        captured_cmd.extend(args)
+        return _StubProcess(0, b"resumed")
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+    result = await agent.execute("resume task", ".", [])
+    assert result.success
+    assert "--resume" in captured_cmd
+    assert "sess-42" in captured_cmd
+
+
+@pytest.mark.asyncio
+async def test_opencode_resume_without_session_id() -> None:
+    """resume_mode='resume' without session_id returns error."""
+    agent = OpenCodeAgent(resume_mode="resume", session_id=None)
+    result = await agent.execute("resume task", ".", [])
+    assert not result.success
+    assert "session_id" in result.output
+
+
+@pytest.mark.asyncio
 async def test_codex_execute_success(monkeypatch: pytest.MonkeyPatch) -> None:
     agent = CodexAgent()
 
@@ -347,6 +391,9 @@ class TestCapabilityDetection:
         assert "--non-interactive" in args
         assert "--model" in args
         assert "--provider" in args
+        assert "--api-key" in args
+        assert "--continue" in args
+        assert "--resume" in args
 
     def test_check_api_key_with_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """check_api_key detects environment variables."""
@@ -376,6 +423,13 @@ class TestCapabilityDetection:
         configured, message = agent.check_api_key()
         assert configured is True
         assert "OPENAI_API_KEY" in message
+
+    def test_opencode_check_api_key_uses_instance_key(self) -> None:
+        """OpenCode check_api_key uses instance api_key if set."""
+        agent = OpenCodeAgent(api_key="abcdefghijklmnopqrst")
+        configured, message = agent.check_api_key()
+        assert configured is True
+        assert "API key configured" in message
 
     def test_get_capabilities_returns_dict(self) -> None:
         """get_capabilities returns complete capability dictionary."""
@@ -429,6 +483,43 @@ class TestCapabilityDetection:
         assert "none" in caps["resume_modes"]
         assert "continue" in caps["resume_modes"]
         assert "resume" in caps["resume_modes"]
+
+    def test_opencode_capabilities_details(self) -> None:
+        """OpenCode capabilities include specific features."""
+        agent = OpenCodeAgent()
+        caps = agent.get_capabilities()
+
+        assert caps["name"] == "opencode"
+        assert "none" in caps["resume_modes"]
+        assert "continue" in caps["resume_modes"]
+        assert "resume" in caps["resume_modes"]
+
+    def test_capabilities_include_new_fields(self) -> None:
+        """Capabilities include new fields for model selection and multi-file editing."""
+        agents = [ClaudeCodeAgent(), CodexAgent(), AiderAgent(), OpenCodeAgent()]
+        for agent in agents:
+            caps = agent.get_capabilities()
+            assert "supports_model_selection" in caps
+            assert "supports_multi_file_editing" in caps
+            assert "max_concurrent_tasks" in caps
+            assert isinstance(caps["supports_model_selection"], bool)
+            assert isinstance(caps["supports_multi_file_editing"], bool)
+            assert caps["max_concurrent_tasks"] is None or isinstance(
+                caps["max_concurrent_tasks"], int
+            )
+
+    def test_model_selection_support(self) -> None:
+        """All agents support model selection."""
+        agents = [ClaudeCodeAgent(), CodexAgent(), AiderAgent(), OpenCodeAgent()]
+        for agent in agents:
+            assert agent._supports_model_selection() is True
+
+    def test_multi_file_editing_support(self) -> None:
+        """Only Aider supports multi-file editing."""
+        assert AiderAgent()._supports_multi_file_editing() is True
+        assert ClaudeCodeAgent()._supports_multi_file_editing() is False
+        assert CodexAgent()._supports_multi_file_editing() is False
+        assert OpenCodeAgent()._supports_multi_file_editing() is False
 
     def test_capabilities_cache(self) -> None:
         """Capabilities are cached after first call."""
