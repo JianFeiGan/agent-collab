@@ -4,6 +4,45 @@ All notable changes to AgentCollab will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.5.0] - 2026-05-24
+
+### 🧪 Test Coverage & Quality Improvements
+
+AgentCollab v2.5.0 focuses on test coverage improvements and documentation updates.
+
+### Highlights
+
+- **495 tests passing** (up from 401 in v2.4.0)
+- **82% test coverage** (up from 73%)
+- **94 new test cases** across 5 new test modules
+- **Documentation updates** with version badges
+
+### Added
+
+- **New Test Modules**:
+  - `test_dag_visualizer.py`: 20 tests for DAG visualization module
+  - `test_timing_stats.py`: 21 tests for timing statistics module
+  - `test_merger.py`: 12 tests for result merger module
+  - `test_log_manager.py`: 22 tests for log manager module
+  - `test_cli_extended.py`: 19 tests for CLI commands (checkpoints, replay, security, distributed, HITL)
+
+- **Dependencies**:
+  - Added `pytest-cov` for test coverage reporting
+
+### Changed
+
+- Updated `pyproject.toml` version to 2.5.0
+- Updated README badges to reflect v2.5.0 and 495 tests
+- Improved test coverage across all modules
+
+### Test Coverage by Module
+
+- `dag_visualizer.py`: 15% → 100%
+- `timing_stats.py`: 29% → 95%+
+- `merger.py`: 0% → 100%
+- `log_manager.py`: 72% → 98%
+- `cli.py`: 42% → 60%+
+
 ## [2.0.0] - 2026-05-20
 
 ### 🎉 v2.0.0 Release - Production Ready
