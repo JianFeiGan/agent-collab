@@ -1,0 +1,118 @@
+# Real-World Demo — Bootstrap a Python project with CI, tests, and docs
+#
+# Demonstrates:
+#   - 3 agents running IN PARALLEL on non-overlapping files
+#   - DAG dependency: reviewer waits for all 3 to finish
+#   - Different tool permissions per agent (least privilege)
+#   - workdir isolation prevents file conflicts
+#
+# Use case: You have a Python library with source code but no CI,
+# tests, or documentation. Three agents fix that simultaneously.
+
+name: project-bootstrap
+description: >
+  Bootstrap a Python project with CI/CD pipeline, test suite, and
+  documentation — three agents work in parallel, then a reviewer
+  validates everything.
+
+agents:
+  ci-engineer:
+    type: claude-code
+    model: sonnet
+    allowed_tools: [Read, Write, Edit]
+
+  test-engineer:
+    type: claude-code
+    model: sonnet
+    allowed_tools: [Read, Write, Edit, Bash]
+
+  doc-writer:
+    type: claude-code
+    model: sonnet
+    allowed_tools: [Read, Write]
+
+  reviewer:
+    type: claude-code
+    model: opus
+    allowed_tools: [Read]
+
+tasks:
+  # ── Level 0: Three independent tasks run in parallel ──────────────
+
+  - id: setup-ci
+    agent: ci-engineer
+    prompt: |
+      Create a GitHub Actions CI workflow at .github/workflows/ci.yml:
+      - Trigger on push and PR to main
+      - Matrix: Python 3.11, 3.12, 3.13 on ubuntu-latest
+      - Steps: checkout, setup-python, install deps (pip install -e ".[dev]"),
+        lint with ruff, run pytest with coverage
+      - Upload coverage report as artifact
+
+      Also create a pyproject.toml section for ruff if not present:
+      - target-version = "py311"
+      - line-length = 100
+      - select = ["E", "F", "I", "N", "W", "UP", "B"]
+    outputs: [.github/]
+
+  - id: write-tests
+    agent: test-engineer
+    prompt: |
+      Examine the source code under src/ (or the project root).
+      Write a test suite under tests/ that covers:
+      - All public functions/classes with at least 1 happy-path test
+      - Edge cases: empty input, None values, boundary conditions
+      - Error paths: invalid input should raise the expected exceptions
+
+      Use pytest conventions:
+      - test files named test_*.py
+      - assert statements (no unittest.TestCase)
+      - pytest.mark.parametrize for data-driven tests
+      - conftest.py for shared fixtures
+    outputs: [tests/]
+
+  - id: write-docs
+    agent: doc-writer
+    prompt: |
+      Read the source code and create documentation:
+      - README.md: project overview, installation (pip/uv), quick start
+        with a 5-line usage example, and a link to the full docs
+      - CONTRIBUTING.md: dev setup, how to run tests, code style rules,
+        and how to submit a PR
+      - docs/api-reference.md: auto-generated from docstrings — list all
+        public modules, classes, functions with their signatures
+
+      Write for someone who has never seen this project.
+    outputs: [README.md, CONTRIBUTING.md, docs/]
+
+  # ── Level 1: Review depends on all three parallel tasks ────────────
+
+  - id: review-all
+    depends_on: [setup-ci, write-tests, write-docs]
+    agent: reviewer
+    prompt: |
+      Review everything that was just created:
+
+      1. CI workflow (.github/workflows/ci.yml):
+         - Are all necessary steps included?
+         - Is the Python version matrix reasonable?
+         - Any missing caching or optimization?
+
+      2. Test suite (tests/):
+         - Coverage: are all public APIs tested?
+         - Quality: meaningful assertions, not just "no crash"?
+         - Edge cases: are boundary conditions covered?
+
+      3. Documentation (README.md, CONTRIBUTING.md, docs/):
+         - Accuracy: does the code match what docs describe?
+         - Completeness: any missing sections?
+         - Clarity: would a new contributor understand this?
+
+      List findings by severity: critical / high / medium / low.
+      For each finding, include the file path and suggested fix.
+
+strategy:
+  max_parallel: 3
+  timeout_per_task: 600
+  retry_on_failure: true
+  max_retries: 1

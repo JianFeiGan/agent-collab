@@ -1,42 +1,47 @@
 中文版 | [English](README.md)
 
-# 🤖 AgentCollab
+# AgentCollab
 
-**面向 AI 编程助手的多智能体编排引擎。**
+**让 AI 编程工具协同工作。**
 
+[![CI](https://github.com/JianFeiGan/agent-collab/actions/workflows/ci.yml/badge.svg)](https://github.com/JianFeiGan/agent-collab/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/agent-collab.svg)](https://pypi.org/project/agent-collab/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-495%20passing-brightgreen.svg)](tests/)
-[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/JianFeiGan/agent-collab/releases)
 [![Coverage](https://img.shields.io/badge/coverage-82%25-green.svg)](tests/)
 
-用 YAML 定义工作流，AgentCollab 负责任务调度、并行执行、文件冲突防护和结果合并——让你的 AI 编程团队协同作战，而非相互掣肘。
+AgentCollab 是一个 CLI 工具，编排多个 AI 编程智能体（Claude Code、Codex、Aider）协作完成软件项目。用 YAML 定义任务，AgentCollab 处理调度、并行执行、文件锁定和结果合并。
 
 ---
 
-## 为什么选择 AgentCollab？
+## 和 CrewAI / AutoGen 有什么区别？
 
-| 痛点 | 解决方案 |
-|------|----------|
-| 多个 AI 智能体同时编辑同一文件 | 文件锁机制防止写入冲突 |
-| 手动排列各智能体的任务顺序 | DAG 调度器自动解析依赖关系 |
-| 串行执行浪费时间 | 无依赖任务并行执行 |
-| 多智能体运行过程不可见 | Rich TUI 实时展示执行进度 |
-| 智能体输出需要手动合并 | 基于 Git 的合并策略自动处理集成 |
+AgentCollab **不是**通用 Agent 框架，而是你已有 AI 编程工具之上的轻量编排层。
+
+| | AgentCollab | CrewAI | AutoGen | LangGraph |
+|--|------------|--------|---------|-----------|
+| **接口** | CLI + YAML | Python SDK | Python SDK | Python SDK |
+| **智能体** | 你已安装的工具（Claude Code、Codex、Aider） | 自定义 LLM 智能体 | 自定义 LLM 智能体 | 自定义 LLM 智能体 |
+| **文件安全** | 文件锁 + Git 合并 | 无 | 无 | 无 |
+| **上手时间** | 5 分钟（写 YAML） | 数小时（写 Python） | 数小时（写 Python） | 数小时（写 Python） |
+| **最适合** | AI 编程协作 | 通用多智能体 | 对话式智能体 | 复杂图工作流 |
+
+**什么时候用 AgentCollab：** 你想让 Claude Code、Codex 或 Aider 同时处理代码库的不同部分，且互不干扰。
+
+**什么时候用其他工具：** 你需要自定义 Agent 逻辑、工具定义或对话式 Agent 循环。
 
 ---
 
 ## 安装
 
 ```bash
-# 使用 pip
 pip install agent-collab
-
-# 使用 uv（推荐）
+# 或
 uv pip install agent-collab
 ```
 
-需要 Python 3.11+。你还需要至少安装一个 AI 智能体 CLI：
+需要 Python 3.11+ 和至少一个 AI 智能体 CLI：
 
 | 智能体 | 安装方式 |
 |--------|----------|
@@ -48,11 +53,9 @@ uv pip install agent-collab
 
 ## 快速上手
 
-创建工作流文件 `workflow.yaml`：
-
 ```yaml
-name: my-feature
-description: Implement a feature with code review
+# workflow.yaml — 实现功能，然后审查
+name: feature-with-review
 
 agents:
   coder:
@@ -68,23 +71,21 @@ tasks:
   - id: implement
     agent: coder
     prompt: |
-      Add a /health endpoint to the FastAPI app that returns
-      {"status": "ok"} with a 200 status code.
+      为 FastAPI 应用添加一个 /health 端点，
+      返回 {"status": "ok"} 和 200 状态码。
     outputs: [app/main.py]
 
   - id: review
     depends_on: [implement]
     agent: reviewer
     prompt: |
-      Review the /health endpoint implementation for
-      correctness, error handling, and API best practices.
+      审查 /health 端点的实现，
+      检查正确性、错误处理和 API 最佳实践。
 
 strategy:
   max_parallel: 2
   timeout_per_task: 300
 ```
-
-运行：
 
 ```bash
 agent-collab run workflow.yaml
@@ -92,24 +93,51 @@ agent-collab run workflow.yaml
 
 ---
 
+## 真实场景示例
+
+[`examples/real-world-demo.yaml`](examples/real-world-demo.yaml) 工作流为 Python 项目搭建 CI、测试和文档 — **3 个智能体并行工作**，然后由审查者验证：
+
+```
+Level 0（并行）              Level 1
+┌─────────────┐
+│ setup-ci     │──┐
+└─────────────┘  │
+┌─────────────┐  ├──→  ┌──────────────┐
+│ write-tests  │──┤    │  review-all   │
+└─────────────┘  │    └──────────────┘
+┌─────────────┐  │
+│ write-docs   │──┘
+└─────────────┘
+```
+
+```bash
+agent-collab run examples/real-world-demo.yaml
+```
+
+更多示例见 [`examples/`](examples/)：
+
+| 工作流 | 说明 |
+|--------|------|
+| [`fullstack.yaml`](examples/fullstack.yaml) | 并行构建 FastAPI 后端 + React 前端，然后安全审查 |
+| [`code-review.yaml`](examples/code-review.yaml) | 实现功能 → 代码审查 → 自动修复问题 |
+| [`refactor.yaml`](examples/refactor.yaml) | 并行重构两个模块，然后集成变更 |
+
+---
+
 ## CLI 命令参考
 
 ### `agent-collab run <workflow.yaml>`
 
-执行工作流。任务按依赖顺序执行，无依赖的任务并行运行。
+执行工作流。独立任务并行执行，有依赖的任务等待前置完成。
 
 ```bash
-agent-collab run workflow.yaml              # 运行工作流
-agent-collab run workflow.yaml --verbose    # 显示详细输出
+agent-collab run workflow.yaml
+agent-collab run workflow.yaml --verbose
 ```
 
 ### `agent-collab validate <workflow.yaml>`
 
-验证工作流文件，不执行。检查项包括：
-- YAML 语法
-- 引用的智能体是否存在
-- 依赖的任务是否存在
-- 是否存在循环依赖
+验证工作流但不执行。检查 YAML 语法、智能体引用、依赖引用和循环依赖。
 
 ```bash
 agent-collab validate workflow.yaml
@@ -125,7 +153,7 @@ agent-collab list-agents
 
 ---
 
-## 工作流 YAML 格式
+## 工作流 YAML 参考
 
 ```yaml
 name: workflow-name          # 必填
@@ -133,8 +161,8 @@ description: What it does    # 可选
 
 agents:                      # 智能体定义
   agent-id:                  # 唯一标识符
-    type: claude-code        # 智能体类型 (claude-code | codex | aider)
-    model: sonnet            # 使用的模型（默认：sonnet）
+    type: claude-code        # 类型：claude-code | codex | aider | opencode
+    model: sonnet            # 模型（默认：sonnet）
     workdir: ./path          # 工作目录（默认：.）
     allowed_tools: [Read]    # 允许使用的工具
 
@@ -142,73 +170,40 @@ tasks:                       # 任务定义
   - id: task-id              # 唯一标识符
     agent: agent-id          # 引用上方定义的智能体
     prompt: |                # 给智能体的指令
-      Do this specific thing.
+      执行具体任务。
+      支持 ${VAR} 变量和 ${task_id.output} 引用。
     depends_on: [other-id]   # 必须先完成的任务
-    outputs: [path/]         # 该任务可能修改的文件/目录
+    outputs: [path/]         # 该任务可能修改的文件
     merge_strategy: comments # 输出合并策略
+    priority: 10             # 值越大在并行层级中越先执行
+
+variables:                   # 工作流级变量
+  env_name: production
 
 strategy:                    # 执行配置
   max_parallel: 4            # 最大并行任务数（默认：4）
-  retry_on_failure: false    # 失败时是否重试（默认：false）
+  retry_on_failure: false    # 失败时重试（默认：false）
   max_retries: 0             # 最大重试次数（默认：0）
   timeout_per_task: 600      # 单任务超时秒数（默认：600）
 ```
 
 ---
 
-## 内置智能体
-
-| 智能体 | 类型 | 适用场景 |
-|--------|------|----------|
-| **Claude Code** | `claude-code` | 复杂推理、多文件编辑、代码审查 |
-| **Codex** | `codex` | 快速代码生成、单文件任务 |
-| **Aider** | `aider` | Git 感知编辑、结对编程风格 |
-
-所有智能体均实现 `BaseAgent` 接口。适配器实现详见 [`src/agent_collab/agents/`](src/agent_collab/agents/)。
-
----
-
-## 示例
-
-[`examples/`](examples/) 目录包含开箱即用的工作流示例：
-
-| 工作流 | 说明 |
-|--------|------|
-| [`fullstack.yaml`](examples/fullstack.yaml) | 并行构建 FastAPI 后端 + React 前端，然后进行代码审查 |
-| [`code-review.yaml`](examples/code-review.yaml) | 实现功能 → 代码审查 → 自动修复问题 |
-| [`refactor.yaml`](examples/refactor.yaml) | 并行重构两个模块，然后集成变更 |
-
----
-
 ## 架构
 
-```
-workflow.yaml
-    │
-    ▼
-┌──────────────┐    Pydantic 校验 + 循环依赖检测
-│ WorkflowParser│
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐    Kahn 算法 → 并行执行层级划分
-│ TaskScheduler│
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐    asyncio.Semaphore 控制并行度
-│ TaskExecutor ├────────────────────┐
-└──────┬───────┘                    │
-       │                            ▼
-┌──────┴───────┐          ┌──────────────┐
-│FileLockManager│          │ BaseAgent    │
-│ (fcntl 锁)   │          │ (子进程)     │
-└──────┬───────┘          └──────────────┘
-       │
-       ▼
-┌──────────────┐    Git 分支/合并工作流
-│ ResultMerger │
-└──────────────┘
+```mermaid
+graph TD
+    A[workflow.yaml] --> B[WorkflowParser]
+    B -->|Pydantic 校验 + 循环检测| C[TaskScheduler]
+    C -->|Kahn 算法 → 并行层级| D[TaskExecutor]
+    D -->|asyncio.Semaphore| E[Agent 适配器]
+    D -->|fcntl 锁| F[FileLockManager]
+    E --> G[Claude Code]
+    E --> H[Codex]
+    E --> I[Aider]
+    E --> J[OpenCode]
+    D --> K[ResultMerger]
+    K -->|Git 分支/合并| L[集成输出]
 ```
 
 ---

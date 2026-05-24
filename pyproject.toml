@@ -14,7 +14,7 @@ authors = [
 ]
 keywords = ["ai", "agent", "claude-code", "codex", "aider", "orchestration", "multi-agent"]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.11",
