@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from agent_collab.distributed import (
     DistributedExecutor,
     DistributedTask,
     TaskQueue,
-    TaskResult,
     TaskStatus,
     WorkerInfo,
     WorkerManager,
@@ -64,17 +64,13 @@ class DistributedScheduler:
 
         if self._scheduler_task:
             self._scheduler_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._scheduler_task
-            except asyncio.CancelledError:
-                pass
 
         if self._monitor_task:
             self._monitor_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._monitor_task
-            except asyncio.CancelledError:
-                pass
 
         # Cancel all active tasks
         for task_id, task in self._active_tasks.items():
@@ -133,7 +129,7 @@ class DistributedScheduler:
 
     async def get_worker_stats(self) -> dict[str, Any]:
         """Get worker statistics."""
-        if hasattr(self.worker_manager, 'get_worker_stats'):
+        if hasattr(self.worker_manager, "get_worker_stats"):
             return await self.worker_manager.get_worker_stats()
         workers = await self.worker_manager.get_available_workers()
         return {
@@ -169,9 +165,7 @@ class DistributedScheduler:
                     await self.worker_manager.increment_task_count(worker.id)
 
                     # Execute task asynchronously
-                    task_async = asyncio.create_task(
-                        self._execute_task(task, worker)
-                    )
+                    task_async = asyncio.create_task(self._execute_task(task, worker))
                     self._active_tasks[task.id] = task_async
 
                 await asyncio.sleep(0.1)  # Small delay to prevent busy waiting
@@ -201,7 +195,7 @@ class DistributedScheduler:
 
             logger.info(f"Task {task.id} completed successfully")
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(f"Task {task.id} timed out")
             await self.task_queue.fail(task.id, "Task timed out")
             await self.worker_manager.decrement_task_count(worker.id)
@@ -233,7 +227,7 @@ class DistributedScheduler:
             try:
                 # Check for offline workers
                 workers = await self.worker_manager.get_all_workers()
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
 
                 for worker in workers:
                     # Check heartbeat timeout (30 seconds)
@@ -263,7 +257,7 @@ class DistributedScheduler:
         """
         # Get all tasks assigned to the worker
         all_tasks = []
-        if hasattr(self.task_queue, 'get_all_tasks'):
+        if hasattr(self.task_queue, "get_all_tasks"):
             all_tasks = await self.task_queue.get_all_tasks()
 
         for task in all_tasks:

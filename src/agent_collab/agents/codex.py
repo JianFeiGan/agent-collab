@@ -106,9 +106,7 @@ class CodexAgent(BaseAgent):
                 stderr=asyncio.subprocess.PIPE,
                 cwd=workdir,
             )
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout
-            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except TimeoutError:
             proc.kill()
             elapsed = time.monotonic() - start
@@ -189,11 +187,7 @@ class CodexAgent(BaseAgent):
         """
         api_key = self.api_key or os.environ.get("OPENAI_API_KEY")
         if api_key:
-            masked = (
-                api_key[:8] + "..." + api_key[-4:]
-                if len(api_key) > 12
-                else "***"
-            )
+            masked = api_key[:8] + "..." + api_key[-4:] if len(api_key) > 12 else "***"
             return True, f"OPENAI_API_KEY configured: {masked}"
         return False, "OPENAI_API_KEY not set. Set it via environment variable."
 

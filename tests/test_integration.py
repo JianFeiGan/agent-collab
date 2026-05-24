@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -423,23 +421,27 @@ async def test_log_manager_persistence():
         log_manager = LogManager(log_dir=tmpdir)
 
         # Add some entries
-        log_manager.add_from_dict({
-            "task_id": "task-1",
-            "agent": "mock",
-            "status": "success",
-            "duration": 1.5,
-            "output_summary": "Task completed",
-            "timestamp": 1234567890.0,
-        })
+        log_manager.add_from_dict(
+            {
+                "task_id": "task-1",
+                "agent": "mock",
+                "status": "success",
+                "duration": 1.5,
+                "output_summary": "Task completed",
+                "timestamp": 1234567890.0,
+            }
+        )
 
-        log_manager.add_from_dict({
-            "task_id": "task-2",
-            "agent": "mock",
-            "status": "failed",
-            "duration": 0.5,
-            "output_summary": "Task failed",
-            "timestamp": 1234567891.0,
-        })
+        log_manager.add_from_dict(
+            {
+                "task_id": "task-2",
+                "agent": "mock",
+                "status": "failed",
+                "duration": 0.5,
+                "output_summary": "Task failed",
+                "timestamp": 1234567891.0,
+            }
+        )
 
         # Save session
         log_path = log_manager.save_session("test-session.json")

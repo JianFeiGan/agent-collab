@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from agent_collab.llm import (
     AnthropicProvider,
@@ -13,6 +12,7 @@ from agent_collab.llm import (
     OpenAIProvider,
     get_provider,
 )
+from agent_collab.llm.moa import MoAConfig, MoAEngine
 from agent_collab.llm.scheduler import (
     ModelConfig,
     ModelStats,
@@ -20,7 +20,6 @@ from agent_collab.llm.scheduler import (
     SchedulerConfig,
     SelectionStrategy,
 )
-from agent_collab.llm.moa import MoAConfig, MoAEngine
 
 
 class TestLLMConfig:

@@ -29,11 +29,13 @@ def _make_config(tasks_def: list[dict]) -> WorkflowConfig:
 
 
 def test_linear_chain():
-    config = _make_config([
-        {"id": "a"},
-        {"id": "b", "depends_on": ["a"]},
-        {"id": "c", "depends_on": ["b"]},
-    ])
+    config = _make_config(
+        [
+            {"id": "a"},
+            {"id": "b", "depends_on": ["a"]},
+            {"id": "c", "depends_on": ["b"]},
+        ]
+    )
     scheduler = TaskScheduler(config.tasks)
     order = scheduler.get_execution_order()
     assert order == [["a"], ["b"], ["c"]]
@@ -43,12 +45,14 @@ def test_linear_chain():
 
 
 def test_diamond_pattern():
-    config = _make_config([
-        {"id": "a"},
-        {"id": "b", "depends_on": ["a"]},
-        {"id": "c", "depends_on": ["a"]},
-        {"id": "d", "depends_on": ["b", "c"]},
-    ])
+    config = _make_config(
+        [
+            {"id": "a"},
+            {"id": "b", "depends_on": ["a"]},
+            {"id": "c", "depends_on": ["a"]},
+            {"id": "d", "depends_on": ["b", "c"]},
+        ]
+    )
     scheduler = TaskScheduler(config.tasks)
     order = scheduler.get_execution_order()
     assert order[0] == ["a"]
@@ -80,38 +84,46 @@ def test_single_task():
 
 
 def test_detect_direct_cycle():
-    config = _make_config([
-        {"id": "a", "depends_on": ["b"]},
-        {"id": "b", "depends_on": ["a"]},
-    ])
+    config = _make_config(
+        [
+            {"id": "a", "depends_on": ["b"]},
+            {"id": "b", "depends_on": ["a"]},
+        ]
+    )
     scheduler = TaskScheduler(config.tasks)
     assert scheduler.detect_cycles() is not None
 
 
 def test_detect_indirect_cycle():
-    config = _make_config([
-        {"id": "a", "depends_on": ["c"]},
-        {"id": "b", "depends_on": ["a"]},
-        {"id": "c", "depends_on": ["b"]},
-    ])
+    config = _make_config(
+        [
+            {"id": "a", "depends_on": ["c"]},
+            {"id": "b", "depends_on": ["a"]},
+            {"id": "c", "depends_on": ["b"]},
+        ]
+    )
     scheduler = TaskScheduler(config.tasks)
     assert scheduler.detect_cycles() is not None
 
 
 def test_no_cycle_returns_none():
-    config = _make_config([
-        {"id": "a"},
-        {"id": "b", "depends_on": ["a"]},
-    ])
+    config = _make_config(
+        [
+            {"id": "a"},
+            {"id": "b", "depends_on": ["a"]},
+        ]
+    )
     scheduler = TaskScheduler(config.tasks)
     assert scheduler.detect_cycles() is None
 
 
 def test_execution_order_raises_on_cycle():
-    config = _make_config([
-        {"id": "a", "depends_on": ["b"]},
-        {"id": "b", "depends_on": ["a"]},
-    ])
+    config = _make_config(
+        [
+            {"id": "a", "depends_on": ["b"]},
+            {"id": "b", "depends_on": ["a"]},
+        ]
+    )
     scheduler = TaskScheduler(config.tasks)
     with pytest.raises(ValueError, match="dependency cycle"):
         scheduler.get_execution_order()
@@ -122,13 +134,15 @@ def test_execution_order_raises_on_cycle():
 
 def test_complex_graph():
     """Two independent chains that merge at the end."""
-    config = _make_config([
-        {"id": "a1"},
-        {"id": "a2", "depends_on": ["a1"]},
-        {"id": "b1"},
-        {"id": "b2", "depends_on": ["b1"]},
-        {"id": "merge", "depends_on": ["a2", "b2"]},
-    ])
+    config = _make_config(
+        [
+            {"id": "a1"},
+            {"id": "a2", "depends_on": ["a1"]},
+            {"id": "b1"},
+            {"id": "b2", "depends_on": ["b1"]},
+            {"id": "merge", "depends_on": ["a2", "b2"]},
+        ]
+    )
     scheduler = TaskScheduler(config.tasks)
     order = scheduler.get_execution_order()
 
@@ -142,10 +156,12 @@ def test_complex_graph():
 
 def test_when_task_skipped():
     """Task with unsatisfied when clause is excluded."""
-    config = _make_config([
-        {"id": "a"},
-        {"id": "b", "depends_on": ["a"], "when": "deploy"},
-    ])
+    config = _make_config(
+        [
+            {"id": "a"},
+            {"id": "b", "depends_on": ["a"], "when": "deploy"},
+        ]
+    )
     scheduler = TaskScheduler(config.tasks, context={"ENV": "test"})
     order = scheduler.get_execution_order()
     all_ids = [tid for level in order for tid in level]
@@ -155,10 +171,12 @@ def test_when_task_skipped():
 
 def test_when_task_runs_when_satisfied():
     """Task with satisfied when clause is included."""
-    config = _make_config([
-        {"id": "a"},
-        {"id": "b", "depends_on": ["a"], "when": "deploy"},
-    ])
+    config = _make_config(
+        [
+            {"id": "a"},
+            {"id": "b", "depends_on": ["a"], "when": "deploy"},
+        ]
+    )
     scheduler = TaskScheduler(config.tasks, context={"ENV": "deploy"})
     order = scheduler.get_execution_order()
     all_ids = [tid for level in order for tid in level]
@@ -168,10 +186,12 @@ def test_when_task_runs_when_satisfied():
 
 def test_when_none_always_runs():
     """Task without when clause always runs."""
-    config = _make_config([
-        {"id": "a"},
-        {"id": "b", "depends_on": ["a"]},
-    ])
+    config = _make_config(
+        [
+            {"id": "a"},
+            {"id": "b", "depends_on": ["a"]},
+        ]
+    )
     scheduler = TaskScheduler(config.tasks, context={"ENV": "whatever"})
     order = scheduler.get_execution_order()
     all_ids = [tid for level in order for tid in level]
@@ -181,11 +201,13 @@ def test_when_none_always_runs():
 
 def test_skipped_task_does_not_block_downstream():
     """A skipped conditional task doesn't block its dependents."""
-    config = _make_config([
-        {"id": "a"},
-        {"id": "b", "depends_on": ["a"], "when": "never"},
-        {"id": "c", "depends_on": ["b"]},
-    ])
+    config = _make_config(
+        [
+            {"id": "a"},
+            {"id": "b", "depends_on": ["a"], "when": "never"},
+            {"id": "c", "depends_on": ["b"]},
+        ]
+    )
     scheduler = TaskScheduler(config.tasks, context={"ENV": "prod"})
     order = scheduler.get_execution_order()
     all_ids = [tid for level in order for tid in level]

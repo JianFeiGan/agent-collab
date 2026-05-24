@@ -6,13 +6,14 @@ execution status, timing, and relationships between tasks.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.tree import Tree
 
-from agent_collab.core.workflow import TaskConfig
+if TYPE_CHECKING:
+    from agent_collab.core.workflow import TaskConfig
 
 # Status symbols for tree rendering
 _STATUS_SYMBOLS: dict[str, str] = {
@@ -206,12 +207,14 @@ class DAGVisualizer:
         edges: list[dict[str, str]] = []
 
         for t in tasks:
-            nodes.append({
-                "id": t.id,
-                "agent": t.agent,
-                "status": self._statuses.get(t.id, "pending"),
-                "duration": self._durations.get(t.id),
-            })
+            nodes.append(
+                {
+                    "id": t.id,
+                    "agent": t.agent,
+                    "status": self._statuses.get(t.id, "pending"),
+                    "duration": self._durations.get(t.id),
+                }
+            )
             for dep in t.depends_on:
                 edges.append({"from": dep, "to": t.id})
 

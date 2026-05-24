@@ -36,7 +36,9 @@ class TimingStats:
     timings: list[TaskTiming] = field(default_factory=list)
     _console: Console = field(default_factory=Console, repr=False)
 
-    def record(self, task_id: str, agent: str, duration: float, status: str, attempt: int = 1) -> None:
+    def record(
+        self, task_id: str, agent: str, duration: float, status: str, attempt: int = 1
+    ) -> None:
         """Record timing for a task execution.
 
         Args:
@@ -46,13 +48,15 @@ class TimingStats:
             status: Task status (success/failed/skipped).
             attempt: Attempt number (1 for first try).
         """
-        self.timings.append(TaskTiming(
-            task_id=task_id,
-            agent=agent,
-            duration=duration,
-            status=status,
-            attempt=attempt,
-        ))
+        self.timings.append(
+            TaskTiming(
+                task_id=task_id,
+                agent=agent,
+                duration=duration,
+                status=status,
+                attempt=attempt,
+            )
+        )
 
     def get_task_summary(self, task_id: str) -> dict[str, float | int]:
         """Get timing summary for a specific task across all attempts.

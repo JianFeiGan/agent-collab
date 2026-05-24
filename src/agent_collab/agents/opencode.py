@@ -88,9 +88,7 @@ class OpenCodeAgent(BaseAgent):
             extra_args.extend(["--provider", self.provider])
 
         resolved_key = (
-            self.api_key
-            or os.environ.get("ANTHROPIC_API_KEY")
-            or os.environ.get("OPENAI_API_KEY")
+            self.api_key or os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("OPENAI_API_KEY")
         )
         if resolved_key:
             extra_args.extend(["--api-key", resolved_key])
@@ -110,9 +108,7 @@ class OpenCodeAgent(BaseAgent):
                 stderr=asyncio.subprocess.PIPE,
                 cwd=workdir,
             )
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout
-            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except TimeoutError:
             proc.kill()
             elapsed = time.monotonic() - start
@@ -198,9 +194,7 @@ class OpenCodeAgent(BaseAgent):
         # Check instance api_key first
         if self.api_key:
             masked = (
-                self.api_key[:8] + "..." + self.api_key[-4:]
-                if len(self.api_key) > 12
-                else "***"
+                self.api_key[:8] + "..." + self.api_key[-4:] if len(self.api_key) > 12 else "***"
             )
             return True, f"API key configured: {masked}"
 

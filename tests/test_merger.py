@@ -70,7 +70,9 @@ class TestResultMerger:
             merger.merge_task_branch("task1")
             assert mock_git.call_count == 2
             mock_git.assert_any_call("checkout", "main")
-            mock_git.assert_any_call("merge", "--no-ff", "-m", "Merge agent-collab/task1", "agent-collab/task1")
+            mock_git.assert_any_call(
+                "merge", "--no-ff", "-m", "Merge agent-collab/task1", "agent-collab/task1"
+            )
 
     def test_merge_task_branch_custom_target(self, merger: ResultMerger) -> None:
         """Test merging a task branch with custom target."""
@@ -78,7 +80,9 @@ class TestResultMerger:
             merger.merge_task_branch("task1", target_branch="develop")
             assert mock_git.call_count == 2
             mock_git.assert_any_call("checkout", "develop")
-            mock_git.assert_any_call("merge", "--no-ff", "-m", "Merge agent-collab/task1", "agent-collab/task1")
+            mock_git.assert_any_call(
+                "merge", "--no-ff", "-m", "Merge agent-collab/task1", "agent-collab/task1"
+            )
 
     def test_cleanup_branch(self, merger: ResultMerger) -> None:
         """Test cleaning up a task branch."""

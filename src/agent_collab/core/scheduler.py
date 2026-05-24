@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
+from typing import TYPE_CHECKING
 
-from agent_collab.core.workflow import TaskConfig
+if TYPE_CHECKING:
+    from agent_collab.core.workflow import TaskConfig
 
 
 class TaskScheduler:
@@ -34,10 +36,7 @@ class TaskScheduler:
         """
         if not task.when:
             return True
-        for val in self.context.values():
-            if task.when in val:
-                return True
-        return False
+        return any(task.when in val for val in self.context.values())
 
     @staticmethod
     def _build_dag(tasks: list[TaskConfig]) -> dict[str, set[str]]:
@@ -57,7 +56,7 @@ class TaskScheduler:
         """
         in_degree: dict[str, int] = {tid: 0 for tid in self.tasks}
         for task in self.tasks.values():
-            for dep in task.depends_on:
+            for _dep in task.depends_on:
                 in_degree[task.id] += 1
 
         queue = deque(tid for tid, deg in in_degree.items() if deg == 0)
@@ -129,13 +128,11 @@ class TaskScheduler:
 
         cycle = self.detect_cycles()
         if cycle is not None:
-            raise ValueError(
-                f"Cannot schedule: dependency cycle detected: {' -> '.join(cycle)}"
-            )
+            raise ValueError(f"Cannot schedule: dependency cycle detected: {' -> '.join(cycle)}")
 
         in_degree: dict[str, int] = {tid: 0 for tid in self.tasks}
         for task in self.tasks.values():
-            for dep in task.depends_on:
+            for _dep in task.depends_on:
                 in_degree[task.id] += 1
 
         # Pre-filter: mark tasks that should not run and remove their
@@ -194,12 +191,14 @@ class TaskScheduler:
         else:
             stats["failed_executions"] = stats["failed_executions"] + 1
 
-        self._execution_history.append({
-            "task_id": task_id,
-            "duration": duration,
-            "success": success,
-            "timestamp": __import__("time").time(),
-        })
+        self._execution_history.append(
+            {
+                "task_id": task_id,
+                "duration": duration,
+                "success": success,
+                "timestamp": __import__("time").time(),
+            }
+        )
 
     def get_task_statistics(self, task_id: str | None = None) -> dict[str, object]:
         """Get task execution statistics.

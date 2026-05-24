@@ -6,14 +6,14 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime, timezone
+from enum import Enum, StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class ApprovalStatus(str, Enum):
+class ApprovalStatus(StrEnum):
     """Status of an approval request."""
 
     PENDING = "pending"
@@ -23,7 +23,7 @@ class ApprovalStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class InputType(str, Enum):
+class InputType(StrEnum):
     """Type of human input requested."""
 
     TEXT = "text"
@@ -46,8 +46,8 @@ class ApprovalRequest:
     description: str = ""
     data: dict[str, Any] = field(default_factory=dict)
     status: ApprovalStatus = ApprovalStatus.PENDING
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     expires_at: datetime | None = None
     approved_by: str | None = None
     approved_at: datetime | None = None
@@ -70,8 +70,8 @@ class InputRequest:
     options: list[dict[str, Any]] = field(default_factory=list)
     validation: dict[str, Any] = field(default_factory=dict)
     status: ApprovalStatus = ApprovalStatus.PENDING
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     expires_at: datetime | None = None
     submitted_by: str | None = None
     submitted_at: datetime | None = None
@@ -87,7 +87,7 @@ class ApprovalHistory:
     request_id: str = ""
     action: str = ""  # approve, reject, expire, cancel
     actor: str = ""
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     reason: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -248,15 +248,17 @@ class WebhookProvider(HITLProvider):
         request = self._requests[request_id]
         request.status = ApprovalStatus.APPROVED
         request.approved_by = actor
-        request.approved_at = datetime.now(timezone.utc)
-        request.updated_at = datetime.now(timezone.utc)
+        request.approved_at = datetime.now(UTC)
+        request.updated_at = datetime.now(UTC)
 
-        self._history.append(ApprovalHistory(
-            request_id=request_id,
-            action="approve",
-            actor=actor,
-            reason=reason,
-        ))
+        self._history.append(
+            ApprovalHistory(
+                request_id=request_id,
+                action="approve",
+                actor=actor,
+                reason=reason,
+            )
+        )
 
         logger.info(f"Approval request {request_id} approved by {actor}")
         return True
@@ -269,14 +271,16 @@ class WebhookProvider(HITLProvider):
         request = self._requests[request_id]
         request.status = ApprovalStatus.REJECTED
         request.rejection_reason = reason
-        request.updated_at = datetime.now(timezone.utc)
+        request.updated_at = datetime.now(UTC)
 
-        self._history.append(ApprovalHistory(
-            request_id=request_id,
-            action="reject",
-            actor=actor,
-            reason=reason,
-        ))
+        self._history.append(
+            ApprovalHistory(
+                request_id=request_id,
+                action="reject",
+                actor=actor,
+                reason=reason,
+            )
+        )
 
         logger.info(f"Approval request {request_id} rejected by {actor}")
         return True
@@ -331,16 +335,18 @@ class WebhookProvider(HITLProvider):
         request = self._input_requests[request_id]
         request.status = ApprovalStatus.APPROVED
         request.submitted_by = actor
-        request.submitted_at = datetime.now(timezone.utc)
+        request.submitted_at = datetime.now(UTC)
         request.submitted_value = value
-        request.updated_at = datetime.now(timezone.utc)
+        request.updated_at = datetime.now(UTC)
 
-        self._history.append(ApprovalHistory(
-            request_id=request_id,
-            action="submit_input",
-            actor=actor,
-            metadata={"value": value},
-        ))
+        self._history.append(
+            ApprovalHistory(
+                request_id=request_id,
+                action="submit_input",
+                actor=actor,
+                metadata={"value": value},
+            )
+        )
 
         logger.info(f"Input request {request_id} submitted by {actor}")
         return True
@@ -386,15 +392,17 @@ class InMemoryProvider(HITLProvider):
         request = self._requests[request_id]
         request.status = ApprovalStatus.APPROVED
         request.approved_by = actor
-        request.approved_at = datetime.now(timezone.utc)
-        request.updated_at = datetime.now(timezone.utc)
+        request.approved_at = datetime.now(UTC)
+        request.updated_at = datetime.now(UTC)
 
-        self._history.append(ApprovalHistory(
-            request_id=request_id,
-            action="approve",
-            actor=actor,
-            reason=reason,
-        ))
+        self._history.append(
+            ApprovalHistory(
+                request_id=request_id,
+                action="approve",
+                actor=actor,
+                reason=reason,
+            )
+        )
 
         return True
 
@@ -406,14 +414,16 @@ class InMemoryProvider(HITLProvider):
         request = self._requests[request_id]
         request.status = ApprovalStatus.REJECTED
         request.rejection_reason = reason
-        request.updated_at = datetime.now(timezone.utc)
+        request.updated_at = datetime.now(UTC)
 
-        self._history.append(ApprovalHistory(
-            request_id=request_id,
-            action="reject",
-            actor=actor,
-            reason=reason,
-        ))
+        self._history.append(
+            ApprovalHistory(
+                request_id=request_id,
+                action="reject",
+                actor=actor,
+                reason=reason,
+            )
+        )
 
         return True
 
@@ -436,16 +446,18 @@ class InMemoryProvider(HITLProvider):
         request = self._input_requests[request_id]
         request.status = ApprovalStatus.APPROVED
         request.submitted_by = actor
-        request.submitted_at = datetime.now(timezone.utc)
+        request.submitted_at = datetime.now(UTC)
         request.submitted_value = value
-        request.updated_at = datetime.now(timezone.utc)
+        request.updated_at = datetime.now(UTC)
 
-        self._history.append(ApprovalHistory(
-            request_id=request_id,
-            action="submit_input",
-            actor=actor,
-            metadata={"value": value},
-        ))
+        self._history.append(
+            ApprovalHistory(
+                request_id=request_id,
+                action="submit_input",
+                actor=actor,
+                metadata={"value": value},
+            )
+        )
 
         return True
 

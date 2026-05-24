@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from agent_collab.cli import app
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 runner = CliRunner()
 
@@ -31,7 +33,7 @@ class TestCheckpointsCommand:
         mock_checkpoint.workflow_name = "test-workflow"
         mock_checkpoint.completed_tasks = ["task1", "task2"]
         mock_checkpoint.timestamp = "2024-01-01T00:00:00"
-        
+
         with patch("agent_collab.cli.CheckpointManager") as mock_manager:
             mock_manager.return_value.list_checkpoints.return_value = [mock_checkpoint]
             result = runner.invoke(app, ["checkpoints", "list"])
@@ -85,6 +87,7 @@ class TestReplayCommand:
     def test_replay_workflow_unknown_agent(self, tmp_path: Path) -> None:
         """Test replay with unknown agent type."""
         import yaml
+
         workflow_file = tmp_path / "workflow.yaml"
         workflow_data = {
             "name": "test",
@@ -110,9 +113,9 @@ class TestSecurityCommands:
 
     def test_security_create_user_invalid_role(self) -> None:
         """Test creating a user with invalid role."""
-        result = runner.invoke(app, [
-            "security-create-user", "testuser", "password123", "--role", "invalid"
-        ])
+        result = runner.invoke(
+            app, ["security-create-user", "testuser", "password123", "--role", "invalid"]
+        )
         assert result.exit_code == 1
         assert "Invalid role" in result.output
 
@@ -124,7 +127,7 @@ class TestSecurityCommands:
         mock_user.role = MagicMock(value="developer")
         mock_user.tenant_id = "default"
         mock_user.hashed_password = "hashed"
-        
+
         with patch("agent_collab.security.providers.InMemoryAuthProvider") as mock_provider:
             mock_provider.return_value.authenticate = AsyncMock(return_value=mock_user)
             with patch("agent_collab.security.generate_token") as mock_gen_token:
@@ -168,13 +171,15 @@ class TestDistributedCommand:
         with patch("agent_collab.distributed.queue.InMemoryTaskQueue") as mock_queue:
             with patch("agent_collab.distributed.queue.InMemoryWorkerManager") as mock_wm:
                 mock_queue.return_value.get_queue_size = AsyncMock(return_value=5)
-                mock_wm.return_value.get_worker_stats = AsyncMock(return_value={
-                    "total_workers": 3,
-                    "idle_workers": 2,
-                    "busy_workers": 1,
-                    "total_capacity": 10,
-                    "current_tasks": 1,
-                })
+                mock_wm.return_value.get_worker_stats = AsyncMock(
+                    return_value={
+                        "total_workers": 3,
+                        "idle_workers": 2,
+                        "busy_workers": 1,
+                        "total_capacity": 10,
+                        "current_tasks": 1,
+                    }
+                )
                 result = runner.invoke(app, ["distributed-status"])
                 assert result.exit_code == 0
                 assert "Distributed Status" in result.output
@@ -187,7 +192,7 @@ class TestHITLCommand:
 
     def test_hitl_pending_empty(self) -> None:
         """Test showing pending HITL requests when none exist."""
-        with patch("agent_collab.hitl.InMemoryProvider") as mock_provider:
+        with patch("agent_collab.hitl.InMemoryProvider"):
             with patch("agent_collab.hitl.nodes.HITLManager") as mock_manager:
                 mock_manager.return_value.get_pending_approvals.return_value = []
                 mock_manager.return_value.get_pending_inputs.return_value = []
@@ -202,8 +207,8 @@ class TestHITLCommand:
         mock_approval.task_id = "task1"
         mock_approval.title = "Test Approval"
         mock_approval.status.value = "pending"
-        
-        with patch("agent_collab.hitl.InMemoryProvider") as mock_provider:
+
+        with patch("agent_collab.hitl.InMemoryProvider"):
             with patch("agent_collab.hitl.nodes.HITLManager") as mock_manager:
                 mock_manager.return_value.get_pending_approvals.return_value = [mock_approval]
                 mock_manager.return_value.get_pending_inputs.return_value = []
@@ -220,8 +225,8 @@ class TestHITLCommand:
         mock_input.title = "Test Input"
         mock_input.input_type.value = "text"
         mock_input.status.value = "pending"
-        
-        with patch("agent_collab.hitl.InMemoryProvider") as mock_provider:
+
+        with patch("agent_collab.hitl.InMemoryProvider"):
             with patch("agent_collab.hitl.nodes.HITLManager") as mock_manager:
                 mock_manager.return_value.get_pending_approvals.return_value = []
                 mock_manager.return_value.get_pending_inputs.return_value = [mock_input]

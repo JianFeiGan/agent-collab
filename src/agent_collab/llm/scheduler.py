@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
@@ -144,9 +144,7 @@ class MultiModelScheduler:
             for key, provider in self._providers.items()
             if self.config.models[
                 next(
-                    i
-                    for i, m in enumerate(self.config.models)
-                    if f"{m.provider}/{m.model}" == key
+                    i for i, m in enumerate(self.config.models) if f"{m.provider}/{m.model}" == key
                 )
             ].enabled
         ]
@@ -181,10 +179,9 @@ class MultiModelScheduler:
         self, providers: list[tuple[str, BaseLLMProvider]]
     ) -> tuple[str, BaseLLMProvider]:
         """Select the cheapest provider."""
+
         def get_cost(key: str) -> float:
-            model_cfg = next(
-                m for m in self.config.models if f"{m.provider}/{m.model}" == key
-            )
+            model_cfg = next(m for m in self.config.models if f"{m.provider}/{m.model}" == key)
             return model_cfg.cost_per_1k_input
 
         return min(providers, key=lambda x: get_cost(x[0]))
@@ -193,10 +190,9 @@ class MultiModelScheduler:
         self, providers: list[tuple[str, BaseLLMProvider]]
     ) -> tuple[str, BaseLLMProvider]:
         """Select the highest quality provider."""
+
         def get_quality(key: str) -> float:
-            model_cfg = next(
-                m for m in self.config.models if f"{m.provider}/{m.model}" == key
-            )
+            model_cfg = next(m for m in self.config.models if f"{m.provider}/{m.model}" == key)
             return model_cfg.quality_score
 
         return max(providers, key=lambda x: get_quality(x[0]))
@@ -205,13 +201,12 @@ class MultiModelScheduler:
         self, providers: list[tuple[str, BaseLLMProvider]]
     ) -> tuple[str, BaseLLMProvider]:
         """Select the fastest provider."""
+
         def get_latency(key: str) -> float:
             stats = self._stats.get(key)
             if stats and stats.total_calls > 0:
                 return stats.avg_latency_seconds
-            model_cfg = next(
-                m for m in self.config.models if f"{m.provider}/{m.model}" == key
-            )
+            model_cfg = next(m for m in self.config.models if f"{m.provider}/{m.model}" == key)
             return model_cfg.avg_latency_ms / 1000.0
 
         return min(providers, key=lambda x: get_latency(x[0]))
@@ -221,6 +216,7 @@ class MultiModelScheduler:
     ) -> tuple[str, BaseLLMProvider]:
         """Randomly select a provider."""
         import random
+
         return random.choice(providers)
 
     async def generate(

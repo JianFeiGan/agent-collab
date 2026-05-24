@@ -26,10 +26,14 @@ class ClaudeCodeAgent(BaseAgent):
 
         cmd = [
             "claude",
-            "-p", prompt,
-            "--output-format", "json",
-            "--permission-mode", "bypassPermissions",
-            "--max-turns", "50",
+            "-p",
+            prompt,
+            "--output-format",
+            "json",
+            "--permission-mode",
+            "bypassPermissions",
+            "--max-turns",
+            "50",
         ]
         if self.resume_mode == "continue":
             cmd.append("--continue")
@@ -52,9 +56,7 @@ class ClaudeCodeAgent(BaseAgent):
                 stderr=asyncio.subprocess.PIPE,
                 cwd=workdir,
             )
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout
-            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except TimeoutError:
             proc.kill()
             elapsed = time.monotonic() - start
@@ -68,8 +70,7 @@ class ClaudeCodeAgent(BaseAgent):
             return AgentResult(
                 success=False,
                 output=(
-                    "claude CLI not found. "
-                    "Install with: npm install -g @anthropic-ai/claude-code"
+                    "claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code"
                 ),
                 duration_seconds=elapsed,
             )
@@ -145,7 +146,8 @@ class ClaudeCodeAgent(BaseAgent):
             List of supported argument strings.
         """
         return [
-            "-p", "--print",
+            "-p",
+            "--print",
             "--output-format",
             "--permission-mode",
             "--max-turns",

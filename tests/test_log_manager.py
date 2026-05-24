@@ -174,7 +174,7 @@ class TestLogManager:
         log_path = manager.save_session()
         assert log_path.exists()
         assert log_path.suffix == ".json"
-        
+
         with open(log_path) as f:
             data = json.load(f)
         assert "session_id" in data
@@ -182,7 +182,9 @@ class TestLogManager:
         assert "entries" in data
         assert len(data["entries"]) == 1
 
-    def test_save_session_custom_filename(self, manager: LogManager, sample_entry: ExecutionLogEntry) -> None:
+    def test_save_session_custom_filename(
+        self, manager: LogManager, sample_entry: ExecutionLogEntry
+    ) -> None:
         """Test saving session with custom filename."""
         manager.add_entry(sample_entry)
         log_path = manager.save_session(filename="custom.json")
@@ -200,7 +202,7 @@ class TestLogManager:
         """Test loading session from file."""
         manager.add_entry(sample_entry)
         log_path = manager.save_session()
-        
+
         loaded_entries = manager.load_session(log_path.name)
         assert len(loaded_entries) == 1
         loaded = loaded_entries[0]
@@ -223,7 +225,7 @@ class TestLogManager:
         manager.add_entry(sample_entry)
         manager.save_session(filename="session1.json")
         manager.save_session(filename="session2.json")
-        
+
         sessions = manager.list_sessions()
         assert len(sessions) == 2
         for session in sessions:
@@ -281,7 +283,7 @@ class TestLogManager:
                 tokens_used=300,
             ),
         ]
-        
+
         stats = manager.get_statistics(entries)
         assert stats["total_tasks"] == 3
         assert stats["successful_tasks"] == 2
@@ -303,7 +305,7 @@ class TestLogManager:
             timestamp=1234567890.0,
         )
         manager.add_entry(entry)
-        
+
         stats = manager.get_statistics()
         assert stats["total_tasks"] == 1
         assert stats["successful_tasks"] == 1
@@ -315,7 +317,7 @@ class TestLogManager:
         csv_path = manager.export_csv("test.csv")
         assert csv_path.exists()
         assert csv_path.suffix == ".csv"
-        
+
         with open(csv_path) as f:
             content = f.read()
         assert "task_id,agent,status,duration" in content

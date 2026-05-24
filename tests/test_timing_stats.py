@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import pytest
 from rich.console import Console
 from rich.table import Table
@@ -87,7 +85,14 @@ class TestTimingStats:
     def test_get_task_summary_empty(self, stats: TimingStats) -> None:
         """Test getting task summary with no data."""
         summary = stats.get_task_summary("task1")
-        assert summary == {"min": 0.0, "max": 0.0, "avg": 0.0, "total": 0.0, "count": 0, "last": 0.0}
+        assert summary == {
+            "min": 0.0,
+            "max": 0.0,
+            "avg": 0.0,
+            "total": 0.0,
+            "count": 0,
+            "last": 0.0,
+        }
 
     def test_get_task_summary_single(self, stats: TimingStats) -> None:
         """Test getting task summary with single entry."""
@@ -117,7 +122,14 @@ class TestTimingStats:
         """Test getting task summary for nonexistent task."""
         stats.record("task1", "claude-code", 1.5, "success")
         summary = stats.get_task_summary("task2")
-        assert summary == {"min": 0.0, "max": 0.0, "avg": 0.0, "total": 0.0, "count": 0, "last": 0.0}
+        assert summary == {
+            "min": 0.0,
+            "max": 0.0,
+            "avg": 0.0,
+            "total": 0.0,
+            "count": 0,
+            "last": 0.0,
+        }
 
     def test_get_overall_summary_empty(self, stats: TimingStats) -> None:
         """Test getting overall summary with no data."""
@@ -132,11 +144,13 @@ class TestTimingStats:
             "p95_time": 0.0,
         }
 
-    def test_get_overall_summary(self, stats: TimingStats, sample_timings: list[TaskTiming]) -> None:
+    def test_get_overall_summary(
+        self, stats: TimingStats, sample_timings: list[TaskTiming]
+    ) -> None:
         """Test getting overall summary with sample data."""
         for t in sample_timings:
             stats.record(t.task_id, t.agent, t.duration, t.status)
-        
+
         summary = stats.get_overall_summary()
         assert summary["total_time"] == 4.0
         assert summary["task_count"] == 3
@@ -155,12 +169,12 @@ class TestTimingStats:
         """Test getting agent summary with sample data."""
         for t in sample_timings:
             stats.record(t.task_id, t.agent, t.duration, t.status)
-        
+
         summary = stats.get_agent_summary()
         assert "claude-code" in summary
         assert "codex" in summary
         assert "aider" in summary
-        
+
         assert summary["claude-code"]["count"] == 1
         assert summary["claude-code"]["total"] == 1.5
         assert summary["codex"]["count"] == 1
@@ -178,7 +192,7 @@ class TestTimingStats:
         """Test rendering table with sample data."""
         for t in sample_timings:
             stats.record(t.task_id, t.agent, t.duration, t.status)
-        
+
         table = stats.render_table()
         assert isinstance(table, Table)
         # Table should have rows for each unique task
@@ -194,7 +208,7 @@ class TestTimingStats:
         """Test rendering bar chart with sample data."""
         for t in sample_timings:
             stats.record(t.task_id, t.agent, t.duration, t.status)
-        
+
         text = stats.render_bar_chart()
         assert isinstance(text, Text)
         assert "task1" in text.plain
@@ -216,7 +230,7 @@ class TestTimingStats:
         """Test exporting data with sample timings."""
         for t in sample_timings:
             stats.record(t.task_id, t.agent, t.duration, t.status)
-        
+
         data = stats.export_data()
         assert len(data) == 3
         assert data[0]["task_id"] == "task1"

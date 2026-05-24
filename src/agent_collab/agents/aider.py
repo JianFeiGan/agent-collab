@@ -102,9 +102,7 @@ class AiderAgent(BaseAgent):
                 stderr=asyncio.subprocess.PIPE,
                 cwd=workdir,
             )
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout
-            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except TimeoutError:
             proc.kill()
             elapsed = time.monotonic() - start
@@ -205,8 +203,7 @@ class AiderAgent(BaseAgent):
         if configured:
             return True, f"API keys configured: {', '.join(configured)}"
         return False, (
-            "No API keys found. Set one of: "
-            "ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY"
+            "No API keys found. Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY"
         )
 
     def _get_resume_modes(self) -> list[str]:

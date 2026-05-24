@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from agent_collab.storage.history import (
     ExecutionHistory,
     ExecutionRecord,
     TaskExecutionRecord,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class TestExecutionHistoryInit:
@@ -216,12 +219,22 @@ class TestGetTaskStats:
         try:
             exec_id = history.save_execution("wf")
             history.save_task_execution(
-                execution_id=exec_id, task_id="t1", agent="claude",
-                status="success", duration=10.0, tokens_input=100, tokens_output=50,
+                execution_id=exec_id,
+                task_id="t1",
+                agent="claude",
+                status="success",
+                duration=10.0,
+                tokens_input=100,
+                tokens_output=50,
             )
             history.save_task_execution(
-                execution_id=exec_id, task_id="t1", agent="claude",
-                status="success", duration=20.0, tokens_input=200, tokens_output=100,
+                execution_id=exec_id,
+                task_id="t1",
+                agent="claude",
+                status="success",
+                duration=20.0,
+                tokens_input=200,
+                tokens_output=100,
             )
             stats = history.get_task_stats()
             assert len(stats) == 1
@@ -240,12 +253,18 @@ class TestGetTaskStats:
         try:
             exec_id = history.save_execution("wf")
             history.save_task_execution(
-                execution_id=exec_id, task_id="t1", agent="claude",
-                status="success", duration=10.0,
+                execution_id=exec_id,
+                task_id="t1",
+                agent="claude",
+                status="success",
+                duration=10.0,
             )
             history.save_task_execution(
-                execution_id=exec_id, task_id="t2", agent="codex",
-                status="success", duration=20.0,
+                execution_id=exec_id,
+                task_id="t2",
+                agent="codex",
+                status="success",
+                duration=20.0,
             )
             stats = history.get_task_stats(agent="claude")
             assert len(stats) == 1
@@ -259,16 +278,26 @@ class TestExecutionHistoryRecordTypes:
 
     def test_execution_record_fields(self) -> None:
         record = ExecutionRecord(
-            id=1, workflow_name="wf", started_at="2024-01-01",
-            finished_at=None, status="running",
+            id=1,
+            workflow_name="wf",
+            started_at="2024-01-01",
+            finished_at=None,
+            status="running",
         )
         assert record.id == 1
         assert record.finished_at is None
 
     def test_task_execution_record_fields(self) -> None:
         record = TaskExecutionRecord(
-            id=1, execution_id=1, task_id="t1", agent="claude",
-            status="success", duration=5.0, tokens_input=100,
-            tokens_output=50, error_message=None, created_at="2024-01-01",
+            id=1,
+            execution_id=1,
+            task_id="t1",
+            agent="claude",
+            status="success",
+            duration=5.0,
+            tokens_input=100,
+            tokens_output=50,
+            error_message=None,
+            created_at="2024-01-01",
         )
         assert record.tokens_input == 100

@@ -10,14 +10,14 @@ import secrets
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from enum import Enum
+from datetime import UTC, datetime, timedelta, timezone
+from enum import Enum, StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     """User roles for RBAC."""
 
     ADMIN = "admin"
@@ -26,7 +26,7 @@ class UserRole(str, Enum):
     VIEWER = "viewer"
 
 
-class Permission(str, Enum):
+class Permission(StrEnum):
     """Permissions for RBAC."""
 
     # Workflow permissions
@@ -118,8 +118,8 @@ class User:
     role: UserRole = UserRole.DEVELOPER
     tenant_id: str = ""
     is_active: bool = True
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     last_login: datetime | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -136,8 +136,8 @@ class Tenant:
     max_workflows: int = 100
     max_tasks_per_day: int = 1000
     is_active: bool = True
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -154,7 +154,7 @@ class APIKey:
     permissions: set[Permission] = field(default_factory=set)
     is_active: bool = True
     expires_at: datetime | None = None
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     last_used: datetime | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -172,7 +172,7 @@ class AuditLog:
     details: dict[str, Any] = field(default_factory=dict)
     ip_address: str = ""
     user_agent: str = ""
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -535,7 +535,7 @@ def generate_token(
         A :class:`Token` instance with ``access_token`` set.
     """
     secret = secret or _get_secret()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
@@ -551,9 +551,7 @@ def generate_token(
     payload_b64 = _b64url_encode(_json.dumps(payload, separators=(",", ":")).encode())
     signing_input = f"{header_b64}.{payload_b64}"
 
-    signature = hmac.new(
-        secret.encode(), signing_input.encode(), hashlib.sha256
-    ).digest()
+    signature = hmac.new(secret.encode(), signing_input.encode(), hashlib.sha256).digest()
     signature_b64 = _b64url_encode(signature)
 
     access_token = f"{signing_input}.{signature_b64}"
@@ -591,9 +589,7 @@ def verify_token(
         header_b64, payload_b64, signature_b64 = parts
         signing_input = f"{header_b64}.{payload_b64}"
 
-        expected_sig = hmac.new(
-            secret.encode(), signing_input.encode(), hashlib.sha256
-        ).digest()
+        expected_sig = hmac.new(secret.encode(), signing_input.encode(), hashlib.sha256).digest()
         actual_sig = _b64url_decode(signature_b64)
 
         if not hmac.compare_digest(expected_sig, actual_sig):
@@ -603,7 +599,7 @@ def verify_token(
         payload: dict[str, Any] = _json.loads(payload_bytes)
 
         # Check expiration
-        if payload.get("exp", 0) < datetime.now(timezone.utc).timestamp():
+        if payload.get("exp", 0) < datetime.now(UTC).timestamp():
             return None
 
         return payload

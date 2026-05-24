@@ -120,6 +120,7 @@ class OpenAIProvider(BaseLLMProvider):
     ) -> LLMResponse:
         """Generate a response using OpenAI API."""
         import time
+
         import httpx
 
         start = time.monotonic()
@@ -168,6 +169,7 @@ class OpenAIProvider(BaseLLMProvider):
     ) -> LLMResponse:
         """Generate a response using OpenAI API with message history."""
         import time
+
         import httpx
 
         start = time.monotonic()
@@ -231,6 +233,7 @@ class AnthropicProvider(BaseLLMProvider):
     ) -> LLMResponse:
         """Generate a response using Anthropic API."""
         import time
+
         import httpx
 
         start = time.monotonic()
@@ -276,6 +279,7 @@ class AnthropicProvider(BaseLLMProvider):
     ) -> LLMResponse:
         """Generate a response using Anthropic API with message history."""
         import time
+
         import httpx
 
         start = time.monotonic()
@@ -337,6 +341,7 @@ class GoogleProvider(BaseLLMProvider):
     ) -> LLMResponse:
         """Generate a response using Google Gemini API."""
         import time
+
         import httpx
 
         start = time.monotonic()
@@ -382,6 +387,7 @@ class GoogleProvider(BaseLLMProvider):
     ) -> LLMResponse:
         """Generate a response using Google Gemini API with message history."""
         import time
+
         import httpx
 
         start = time.monotonic()

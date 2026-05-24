@@ -189,8 +189,17 @@ class ExecutionHistory:
                (execution_id, task_id, agent, status, duration,
                 tokens_input, tokens_output, error_message, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (execution_id, task_id, agent, status, duration,
-             tokens_input, tokens_output, error_message, now),
+            (
+                execution_id,
+                task_id,
+                agent,
+                status,
+                duration,
+                tokens_input,
+                tokens_output,
+                error_message,
+                now,
+            ),
         )
         conn.commit()
         return cursor.lastrowid  # type: ignore[return-value]
@@ -205,9 +214,7 @@ class ExecutionHistory:
             An ExecutionRecord, or None if not found.
         """
         conn = self._get_conn()
-        row = conn.execute(
-            "SELECT * FROM executions WHERE id = ?", (execution_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM executions WHERE id = ?", (execution_id,)).fetchone()
         if row is None:
             return None
         return ExecutionRecord(

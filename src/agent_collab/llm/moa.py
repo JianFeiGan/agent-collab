@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from agent_collab.llm import LLMResponse
-from agent_collab.llm.scheduler import MultiModelScheduler
+if TYPE_CHECKING:
+    from agent_collab.llm import LLMResponse
+    from agent_collab.llm.scheduler import MultiModelScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -84,11 +85,10 @@ class MoAEngine:
 
             # Generate multiple reference responses in parallel
             import asyncio
+
             tasks = []
-            for i in range(self.config.num_references_per_round):
-                ref_prompt = self._create_reference_prompt(
-                    prompt, reference_responses, round_num
-                )
+            for _i in range(self.config.num_references_per_round):
+                ref_prompt = self._create_reference_prompt(prompt, reference_responses, round_num)
                 tasks.append(
                     self.scheduler.generate(
                         prompt=ref_prompt,
@@ -160,7 +160,7 @@ class MoAEngine:
         # Include previous responses for refinement
         previous_content = "\n\n".join(
             f"Reference {i + 1}:\n{resp.content}"
-            for i, resp in enumerate(previous_responses[-self.config.num_references_per_round:])
+            for i, resp in enumerate(previous_responses[-self.config.num_references_per_round :])
         )
 
         return f"""Original prompt: {original_prompt}
@@ -168,7 +168,7 @@ class MoAEngine:
 Previous responses from other models:
 {previous_content}
 
-Please provide your refined response, considering the perspectives from other models. 
+Please provide your refined response, considering the perspectives from other models.
 Focus on improving accuracy, completeness, and clarity."""
 
     def _create_aggregator_prompt(
@@ -186,8 +186,7 @@ Focus on improving accuracy, completeness, and clarity."""
             The prompt for the aggregator model.
         """
         reference_content = "\n\n".join(
-            f"Reference {i + 1}:\n{resp.content}"
-            for i, resp in enumerate(reference_responses)
+            f"Reference {i + 1}:\n{resp.content}" for i, resp in enumerate(reference_responses)
         )
 
         return f"""Original prompt: {original_prompt}
@@ -195,7 +194,7 @@ Focus on improving accuracy, completeness, and clarity."""
 Multiple models have provided their responses:
 {reference_content}
 
-Please synthesize these responses into a single, high-quality response. 
+Please synthesize these responses into a single, high-quality response.
 Consider the strengths of each response and combine them to create the best possible answer.
 Focus on:
 1. Accuracy and correctness

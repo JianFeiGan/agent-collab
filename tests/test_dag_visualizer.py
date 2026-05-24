@@ -47,28 +47,36 @@ class TestDAGVisualizer:
         assert viz._durations == {}
         assert viz._agents == {}
 
-    def test_build_simple_dag(self, visualizer: DAGVisualizer, sample_tasks: list[TaskConfig]) -> None:
+    def test_build_simple_dag(
+        self, visualizer: DAGVisualizer, sample_tasks: list[TaskConfig]
+    ) -> None:
         """Test building a simple DAG."""
         tree = visualizer.build(sample_tasks)
         assert isinstance(tree, Tree)
         assert visualizer._tree is tree
         assert len(visualizer._tasks) == 3
 
-    def test_build_with_statuses(self, visualizer: DAGVisualizer, sample_tasks: list[TaskConfig]) -> None:
+    def test_build_with_statuses(
+        self, visualizer: DAGVisualizer, sample_tasks: list[TaskConfig]
+    ) -> None:
         """Test building DAG with status information."""
         statuses = {"task1": "success", "task2": "running", "task3": "pending"}
         tree = visualizer.build(sample_tasks, statuses=statuses)
         assert isinstance(tree, Tree)
         assert visualizer._statuses == statuses
 
-    def test_build_with_durations(self, visualizer: DAGVisualizer, sample_tasks: list[TaskConfig]) -> None:
+    def test_build_with_durations(
+        self, visualizer: DAGVisualizer, sample_tasks: list[TaskConfig]
+    ) -> None:
         """Test building DAG with duration information."""
         durations = {"task1": 1.5, "task2": 2.0, "task3": 0.5}
         tree = visualizer.build(sample_tasks, durations=durations)
         assert isinstance(tree, Tree)
         assert visualizer._durations == durations
 
-    def test_build_with_agents(self, visualizer: DAGVisualizer, sample_tasks: list[TaskConfig]) -> None:
+    def test_build_with_agents(
+        self, visualizer: DAGVisualizer, sample_tasks: list[TaskConfig]
+    ) -> None:
         """Test building DAG with agent information."""
         agents = {"task1": "claude-code", "task2": "codex", "task3": "aider"}
         tree = visualizer.build(sample_tasks, agents=agents)
@@ -84,7 +92,9 @@ class TestDAGVisualizer:
     def test_build_with_cycle(self, visualizer: DAGVisualizer) -> None:
         """Test building DAG with circular dependencies."""
         tasks = [
-            TaskConfig(id="task1", agent="claude-code", prompt="Do something", depends_on=["task3"]),
+            TaskConfig(
+                id="task1", agent="claude-code", prompt="Do something", depends_on=["task3"]
+            ),
             TaskConfig(id="task2", agent="codex", prompt="Do something else", depends_on=["task1"]),
             TaskConfig(id="task3", agent="aider", prompt="Final task", depends_on=["task2"]),
         ]
@@ -97,21 +107,27 @@ class TestDAGVisualizer:
         visualizer.render()
         console.print.assert_called_once_with("[yellow]No DAG to render. Call build() first.[/]")
 
-    def test_render_with_title(self, visualizer: DAGVisualizer, sample_tasks: list[TaskConfig], console: MagicMock) -> None:
+    def test_render_with_title(
+        self, visualizer: DAGVisualizer, sample_tasks: list[TaskConfig], console: MagicMock
+    ) -> None:
         """Test rendering with a title."""
         visualizer.build(sample_tasks)
         visualizer.render(title="Test Workflow")
         # Should call console.print with a Panel
         assert console.print.called
 
-    def test_render_without_title(self, visualizer: DAGVisualizer, sample_tasks: list[TaskConfig], console: MagicMock) -> None:
+    def test_render_without_title(
+        self, visualizer: DAGVisualizer, sample_tasks: list[TaskConfig], console: MagicMock
+    ) -> None:
         """Test rendering without a title."""
         visualizer.build(sample_tasks)
         visualizer.render()
         # Should call console.print with the tree
         assert console.print.called
 
-    def test_get_execution_levels(self, visualizer: DAGVisualizer, sample_tasks: list[TaskConfig]) -> None:
+    def test_get_execution_levels(
+        self, visualizer: DAGVisualizer, sample_tasks: list[TaskConfig]
+    ) -> None:
         """Test getting execution levels."""
         levels = visualizer.get_execution_levels(sample_tasks)
         assert len(levels) == 3
@@ -124,7 +140,9 @@ class TestDAGVisualizer:
         tasks = [
             TaskConfig(id="task1", agent="claude-code", prompt="Do something"),
             TaskConfig(id="task2", agent="codex", prompt="Do something else"),
-            TaskConfig(id="task3", agent="aider", prompt="Final task", depends_on=["task1", "task2"]),
+            TaskConfig(
+                id="task3", agent="aider", prompt="Final task", depends_on=["task1", "task2"]
+            ),
         ]
         levels = visualizer.get_execution_levels(tasks)
         assert len(levels) == 2
@@ -141,7 +159,7 @@ class TestDAGVisualizer:
         statuses = {"task1": "success", "task2": "running"}
         durations = {"task1": 1.5, "task2": 2.0}
         visualizer.build(sample_tasks, statuses=statuses, durations=durations)
-        
+
         result = visualizer.to_dict(sample_tasks)
         assert "nodes" in result
         assert "edges" in result
@@ -160,7 +178,7 @@ class TestDAGVisualizer:
         visualizer._statuses = {"task1": "success"}
         visualizer._agents = {"task1": "claude-code"}
         visualizer._durations = {"task1": 1.5}
-        
+
         label = visualizer._format_task_label("task1")
         assert "task1" in label
         assert "claude-code" in label
@@ -171,7 +189,7 @@ class TestDAGVisualizer:
         task = TaskConfig(id="task1", agent="claude-code", prompt="test")
         visualizer._tasks = {"task1": task}
         visualizer._statuses = {"task1": "pending"}
-        
+
         label = visualizer._format_task_label("task1")
         assert "task1" in label
         assert "claude-code" not in label
@@ -182,7 +200,7 @@ class TestDAGVisualizer:
         task2 = TaskConfig(id="task2", agent="codex", prompt="test")
         visualizer._tasks = {"task1": task1, "task2": task2}
         visualizer._statuses = {"task1": "success", "task2": "success"}
-        
+
         label = visualizer._format_root_label()
         assert "2/2 done" in label
         assert "failed" not in label
@@ -194,7 +212,7 @@ class TestDAGVisualizer:
         task3 = TaskConfig(id="task3", agent="aider", prompt="test")
         visualizer._tasks = {"task1": task1, "task2": task2, "task3": task3}
         visualizer._statuses = {"task1": "success", "task2": "failed", "task3": "pending"}
-        
+
         label = visualizer._format_root_label()
         assert "1/3 done" in label
         assert "1 failed" in label
@@ -203,6 +221,6 @@ class TestDAGVisualizer:
         """Test formatting root label with no tasks."""
         visualizer._tasks = {}
         visualizer._statuses = {}
-        
+
         label = visualizer._format_root_label()
         assert "0/0 done" in label

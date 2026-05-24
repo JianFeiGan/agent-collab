@@ -4,6 +4,55 @@ All notable changes to AgentCollab will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.0.0] - 2026-05-24
+
+### 🎉 v3.0.0 Release — Production-Ready Multi-Agent Orchestration
+
+AgentCollab reaches v3.0.0 — the milestone release with comprehensive test coverage, enterprise features, and production-grade quality.
+
+### Highlights
+
+- **495 tests passing** with 82% code coverage
+- **Full observability stack**: DAG visualization, timing stats, token tracking, execution history
+- **Enterprise-grade security**: RBAC, multi-tenancy, JWT auth, audit logging
+- **Distributed execution**: Task queue, worker management, load balancing
+- **HITL (Human-in-the-Loop)**: Approval nodes, input nodes, webhook notifications
+- **Multi-model scheduling**: OpenAI, Anthropic, Google with 5 selection strategies
+- **Plugin system**: Custom agents, hooks, output formatters
+- **Code quality**: All ruff checks passing, consistent formatting
+
+### Added
+
+- **Observability Module**:
+  - DAG tree visualization (Rich)
+  - Task timing statistics with bar charts
+  - Token consumption tracking per agent
+  - SQLite-based execution history
+  - JSON/CSV log export
+
+- **Test Infrastructure**:
+  - pytest-cov for coverage reporting
+  - Integration tests (12 tests)
+  - Performance regression tests (8 tests)
+  - 5 new test modules for observability
+
+- **Code Quality**:
+  - Comprehensive ruff lint configuration
+  - Consistent code formatting across all files
+  - Type hints on all public functions
+
+### Changed
+
+- Version bumped to 3.0.0
+- Development Status classifier updated to "Production/Stable"
+- All modules production-ready with comprehensive tests
+
+### Test Suite
+
+- 495 tests passing in 2.6s
+- 82% code coverage
+- Coverage by module: core 97%, agents 85%, security 97%, observability 85%+
+
 ## [2.5.0] - 2026-05-24
 
 ### 🧪 Test Coverage & Quality Improvements

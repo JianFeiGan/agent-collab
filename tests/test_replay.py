@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -10,6 +10,9 @@ from agent_collab.agents.base import AgentResult, BaseAgent
 from agent_collab.core.checkpoint import Checkpoint, CheckpointManager
 from agent_collab.core.replay import WorkflowReplayer
 from agent_collab.core.workflow import AgentConfig, StrategyConfig, TaskConfig, WorkflowConfig
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class _FakeAgent(BaseAgent):
@@ -19,7 +22,6 @@ class _FakeAgent(BaseAgent):
         self._output = output
         self._success = success
         self._capabilities_cache = None
-
 
     async def execute(self, prompt, workdir, allowed_tools, timeout=600):  # type: ignore[override]
         return AgentResult(success=self._success, output=self._output)
@@ -194,9 +196,7 @@ async def test_replay_task_with_task_outputs(manager: CheckpointManager):
     agents = {"w": agent}
 
     replayer = WorkflowReplayer(checkpoint_manager=manager)
-    result = await replayer.replay_task(
-        "t1", config, agents, task_outputs={"prev": "data"}
-    )
+    result = await replayer.replay_task("t1", config, agents, task_outputs={"prev": "data"})
     assert result.success
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import heapq
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from agent_collab.distributed import (
@@ -49,7 +49,7 @@ class InMemoryTaskQueue(TaskQueue):
                 if task and task.status == TaskStatus.QUEUED:
                     task.status = TaskStatus.RUNNING
                     task.assigned_worker = worker_id
-                    task.started_at = datetime.now(timezone.utc)
+                    task.started_at = datetime.now(UTC)
                     logger.info(f"Task {task.id} dequeued by worker {worker_id}")
                     return task
             return None
@@ -60,7 +60,7 @@ class InMemoryTaskQueue(TaskQueue):
             task = self._tasks.get(task_id)
             if task:
                 task.status = TaskStatus.COMPLETED
-                task.completed_at = datetime.now(timezone.utc)
+                task.completed_at = datetime.now(UTC)
                 task.result = result
                 logger.info(f"Task {task_id} completed")
                 return True
@@ -72,7 +72,7 @@ class InMemoryTaskQueue(TaskQueue):
             task = self._tasks.get(task_id)
             if task:
                 task.status = TaskStatus.FAILED
-                task.completed_at = datetime.now(timezone.utc)
+                task.completed_at = datetime.now(UTC)
                 task.error = error
                 logger.info(f"Task {task_id} failed: {error}")
                 return True
@@ -115,7 +115,7 @@ class InMemoryTaskQueue(TaskQueue):
             task = self._tasks.get(task_id)
             if task and task.status in (TaskStatus.PENDING, TaskStatus.QUEUED, TaskStatus.RUNNING):
                 task.status = TaskStatus.CANCELLED
-                task.completed_at = datetime.now(timezone.utc)
+                task.completed_at = datetime.now(UTC)
                 logger.info(f"Task {task_id} cancelled")
                 return True
             return False
@@ -131,8 +131,8 @@ class InMemoryWorkerManager(WorkerManager):
     async def register_worker(self, worker: WorkerInfo) -> bool:
         """Register a worker node."""
         async with self._lock:
-            worker.registered_at = datetime.now(timezone.utc)
-            worker.last_heartbeat = datetime.now(timezone.utc)
+            worker.registered_at = datetime.now(UTC)
+            worker.last_heartbeat = datetime.now(UTC)
             self._workers[worker.id] = worker
             logger.info(f"Worker {worker.id} registered: {worker.name}")
             return True
@@ -151,7 +151,7 @@ class InMemoryWorkerManager(WorkerManager):
         async with self._lock:
             worker = self._workers.get(worker_id)
             if worker:
-                worker.last_heartbeat = datetime.now(timezone.utc)
+                worker.last_heartbeat = datetime.now(UTC)
                 return True
             return False
 
@@ -161,14 +161,13 @@ class InMemoryWorkerManager(WorkerManager):
 
     async def get_available_workers(self) -> list[WorkerInfo]:
         """Get all available workers."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         available = []
         for worker in self._workers.values():
             # Check if worker is online (heartbeat within last 30 seconds)
             if (now - worker.last_heartbeat).total_seconds() < 30:
                 if worker.status == WorkerStatus.IDLE or (
-                    worker.status == WorkerStatus.BUSY
-                    and worker.current_tasks < worker.max_tasks
+                    worker.status == WorkerStatus.BUSY and worker.current_tasks < worker.max_tasks
                 ):
                     available.append(worker)
         return available
@@ -249,10 +248,7 @@ class LoadBalancer:
         # Filter workers by capabilities if task requires specific capabilities
         if task.metadata.get("required_capabilities"):
             required = set(task.metadata["required_capabilities"])
-            workers = [
-                w for w in workers
-                if required.issubset(set(w.capabilities))
-            ]
+            workers = [w for w in workers if required.issubset(set(w.capabilities))]
             if not workers:
                 return None
 
@@ -282,11 +278,13 @@ class LoadBalancer:
     def _select_random(self, workers: list[WorkerInfo]) -> WorkerInfo:
         """Select random worker."""
         import random
+
         return random.choice(workers)
 
     def _select_weighted(self, workers: list[WorkerInfo]) -> WorkerInfo:
         """Select worker based on weight."""
         import random
+
         total_weight = sum(w.weight for w in workers)
         r = random.uniform(0, total_weight)
         cumulative = 0.0
@@ -298,6 +296,7 @@ class LoadBalancer:
 
     def _select_resource_based(self, workers: list[WorkerInfo]) -> WorkerInfo:
         """Select worker based on available resources."""
+
         # Calculate resource score (lower is better)
         def resource_score(worker: WorkerInfo) -> float:
             task_ratio = worker.current_tasks / worker.max_tasks if worker.max_tasks > 0 else 1.0

@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from agent_collab.agents.base import AgentResult
+if TYPE_CHECKING:
+    from agent_collab.agents.base import AgentResult
 
 logger = logging.getLogger(__name__)
 
@@ -162,9 +163,7 @@ class HookRegistry:
         Returns:
             A :class:`HookContext` capturing the invocation context.
         """
-        ctx = HookContext(
-            task_id=task_id, error=error, result=result, metadata=metadata or {}
-        )
+        ctx = HookContext(task_id=task_id, error=error, result=result, metadata=metadata or {})
         for hook in self._failure:
             try:
                 await hook(task_id, error, result, ctx.metadata)

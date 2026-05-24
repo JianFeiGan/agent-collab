@@ -119,6 +119,7 @@ class TestTokenTrackerRender:
 
     def test_render_table_returns_table(self) -> None:
         from rich.table import Table
+
         tracker = TokenTracker()
         tracker.record("t1", "claude", input_tokens=100, output_tokens=50)
         table = tracker.render_table()
@@ -127,6 +128,7 @@ class TestTokenTrackerRender:
 
     def test_render_agent_summary_table_returns_table(self) -> None:
         from rich.table import Table
+
         tracker = TokenTracker()
         tracker.record("t1", "claude", input_tokens=100, output_tokens=50)
         table = tracker.render_agent_summary_table()
@@ -152,6 +154,7 @@ class TestTokenTrackerExport:
 
     def test_export_json_creates_file(self, tmp_path: object) -> None:
         from pathlib import Path
+
         tracker = TokenTracker()
         tracker.record("t1", "claude", input_tokens=100, output_tokens=50)
         tracker.record("t2", "codex", input_tokens=200, output_tokens=80)

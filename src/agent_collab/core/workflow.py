@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import re
 from collections import defaultdict
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, model_validator
 from agent_collab.core.degradation import TaskDegradation
 
 
-class NodeType(str, Enum):
+class NodeType(StrEnum):
     """Type of workflow node."""
 
     TASK = "task"
@@ -121,21 +121,15 @@ class WorkflowConfig(BaseModel):
 
         for task in self.tasks:
             if task.agent not in agent_names:
-                raise ValueError(
-                    f"Task '{task.id}' references unknown agent '{task.agent}'"
-                )
+                raise ValueError(f"Task '{task.id}' references unknown agent '{task.agent}'")
             for dep in task.depends_on:
                 if dep not in all_ids:
-                    raise ValueError(
-                        f"Task '{task.id}' depends on unknown node '{dep}'"
-                    )
+                    raise ValueError(f"Task '{task.id}' depends on unknown node '{dep}'")
 
         for condition in self.conditions:
             for dep in condition.depends_on:
                 if dep not in all_ids:
-                    raise ValueError(
-                        f"Condition '{condition.id}' depends on unknown node '{dep}'"
-                    )
+                    raise ValueError(f"Condition '{condition.id}' depends on unknown node '{dep}'")
             # Validate condition references
             if condition.condition.then not in all_ids:
                 raise ValueError(
@@ -149,14 +143,10 @@ class WorkflowConfig(BaseModel):
         for loop in self.loops:
             for dep in loop.depends_on:
                 if dep not in all_ids:
-                    raise ValueError(
-                        f"Loop '{loop.id}' depends on unknown node '{dep}'"
-                    )
+                    raise ValueError(f"Loop '{loop.id}' depends on unknown node '{dep}'")
             for body_id in loop.loop.body:
                 if body_id not in all_ids:
-                    raise ValueError(
-                        f"Loop '{loop.id}' references unknown body node '{body_id}'"
-                    )
+                    raise ValueError(f"Loop '{loop.id}' references unknown body node '{body_id}'")
 
         return self
 
@@ -326,6 +316,7 @@ class WorkflowParser:
         Each key in *outputs* is a task ID whose value is that task's
         execution output string.  Unresolved placeholders are left as-is.
         """
+
         def _replace(match: re.Match[str]) -> str:  # type: ignore[type-arg]
             task_id = match.group(1)
             return outputs.get(task_id, match.group(0))
@@ -433,9 +424,7 @@ class WorkflowParser:
                 if color[neighbor] == GRAY:
                     cycle_start = path.index(neighbor)
                     cycle = path[cycle_start:] + [neighbor]
-                    raise ValueError(
-                        f"Dependency cycle detected: {' -> '.join(cycle)}"
-                    )
+                    raise ValueError(f"Dependency cycle detected: {' -> '.join(cycle)}")
                 if color[neighbor] == WHITE:
                     dfs(neighbor)
             path.pop()

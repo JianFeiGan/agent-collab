@@ -39,6 +39,7 @@ def _get_agent_registry() -> dict[str, BaseAgent]:
     global _AGENT_REGISTRY
     if _AGENT_REGISTRY is None:
         from agent_collab.agents.opencode import OpenCodeAgent
+
         _AGENT_REGISTRY = {
             "claude-code": ClaudeCodeAgent(),
             "codex": CodexAgent(),
@@ -236,9 +237,7 @@ async def _replay_workflow(config, agent_map, checkpoint_id) -> dict:
 
 @app.command(name="replay")
 def replay_workflow(
-    checkpoint_id: str = typer.Argument(
-        ..., help="Checkpoint ID to resume from."
-    ),
+    checkpoint_id: str = typer.Argument(..., help="Checkpoint ID to resume from."),
     workflow_file: Path = typer.Argument(
         ..., help="Path to the workflow YAML file.", exists=True, readable=True
     ),
@@ -276,17 +275,15 @@ def replay_workflow(
         console.print(f"\n[red]{total_failed} task(s) failed during replay.[/]")
         raise typer.Exit(code=1)
     else:
-        console.print(f"\n[green]Replay completed successfully. {len(results)} task(s) executed.[/]")
+        console.print(
+            f"\n[green]Replay completed successfully. {len(results)} task(s) executed.[/]"
+        )
 
 
 @app.command(name="checkpoints")
 def checkpoints(
-    action: str = typer.Argument(
-        "list", help="Action: 'list' or 'delete'."
-    ),
-    checkpoint_id: str | None = typer.Argument(
-        None, help="Checkpoint ID (required for 'delete')."
-    ),
+    action: str = typer.Argument("list", help="Action: 'list' or 'delete'."),
+    checkpoint_id: str | None = typer.Argument(None, help="Checkpoint ID (required for 'delete')."),
 ) -> None:
     """Manage workflow checkpoints."""
     manager = CheckpointManager()
@@ -348,7 +345,9 @@ def security_create_user(
     try:
         user_role = UserRole(role)
     except ValueError:
-        progress.show_error(f"Invalid role '{role}'. Choose from: admin, manager, developer, viewer.")
+        progress.show_error(
+            f"Invalid role '{role}'. Choose from: admin, manager, developer, viewer."
+        )
         raise typer.Exit(code=1)
 
     import asyncio
@@ -377,9 +376,10 @@ def security_login(
     password: str = typer.Argument(..., help="Password."),
 ) -> None:
     """Authenticate and return an access token."""
+    import asyncio
+
     from agent_collab.security import generate_token
     from agent_collab.security.providers import InMemoryAuthProvider
-    import asyncio
 
     provider = InMemoryAuthProvider()
 
@@ -423,8 +423,9 @@ def security_verify_token(
 @app.command()
 def distributed_status() -> None:
     """Show distributed execution status (workers & queue)."""
-    from agent_collab.distributed.queue import InMemoryTaskQueue, InMemoryWorkerManager
     import asyncio
+
+    from agent_collab.distributed.queue import InMemoryTaskQueue, InMemoryWorkerManager
 
     queue = InMemoryTaskQueue()
     wm = InMemoryWorkerManager()
@@ -453,9 +454,10 @@ def distributed_status() -> None:
 @app.command()
 def hitl_pending() -> None:
     """List pending approval and input requests."""
+    import asyncio
+
     from agent_collab.hitl import InMemoryProvider
     from agent_collab.hitl.nodes import HITLManager
-    import asyncio
 
     provider = InMemoryProvider()
     manager = HITLManager(provider)
@@ -486,7 +488,9 @@ def hitl_pending() -> None:
             table.add_column("Type")
             table.add_column("Status")
             for req in inputs:
-                table.add_row(req.id[:8], req.task_id, req.title, req.input_type.value, req.status.value)
+                table.add_row(
+                    req.id[:8], req.task_id, req.title, req.input_type.value, req.status.value
+                )
             console.print(table)
 
     asyncio.run(_list())

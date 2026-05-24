@@ -22,7 +22,6 @@ class _FakeAgent(BaseAgent):
         self._success = success
         self._capabilities_cache = None
 
-
     async def execute(self, prompt, workdir, allowed_tools, timeout=600):  # type: ignore[override]
         return AgentResult(success=self._success, output=self._output)
 

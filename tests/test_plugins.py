@@ -208,7 +208,7 @@ async def test_trigger_after_task() -> None:
     hook = _StubHookPlugin()
     pm.register_plugin(hook)
     result = AgentResult(success=True, output="ok")
-    metadata = await pm.trigger_after_task("t1", result)
+    await pm.trigger_after_task("t1", result)
     assert hook.called_after
 
 
@@ -217,7 +217,7 @@ async def test_trigger_on_failure() -> None:
     pm = PluginManager()
     hook = _StubHookPlugin()
     pm.register_plugin(hook)
-    metadata = await pm.trigger_on_failure("t1", error=ValueError("oops"))
+    await pm.trigger_on_failure("t1", error=ValueError("oops"))
     assert hook.called_failure
 
 

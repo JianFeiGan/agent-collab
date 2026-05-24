@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class DegradationPolicy(str, Enum):
+class DegradationPolicy(StrEnum):
     """Policy for handling task failures during workflow execution.
 
     Attributes:
@@ -72,9 +72,7 @@ class DegradationHandler:
         """
         return self.failure_counts.get(task_id, 0) >= degradation.max_failures
 
-    def get_policy(
-        self, task_id: str, degradation: TaskDegradation
-    ) -> DegradationPolicy:
+    def get_policy(self, task_id: str, degradation: TaskDegradation) -> DegradationPolicy:
         """Return the effective degradation policy for a task.
 
         If the failure count has not yet reached max_failures, returns

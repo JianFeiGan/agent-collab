@@ -7,8 +7,10 @@ abstract ``create_*`` / ``on_*`` / ``format_*`` methods.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-from agent_collab.agents.base import AgentResult, BaseAgent
+if TYPE_CHECKING:
+    from agent_collab.agents.base import AgentResult, BaseAgent
 
 
 class BasePlugin(ABC):

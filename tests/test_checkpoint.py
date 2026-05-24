@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from agent_collab.core.checkpoint import Checkpoint, CheckpointManager
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.fixture
@@ -140,9 +143,7 @@ def test_save_creates_json_file(manager: CheckpointManager, checkpoint_dir: Path
     assert data["task_outputs"] == {"t1": "hello"}
 
 
-def test_list_checkpoints_skips_invalid_json(
-    manager: CheckpointManager, checkpoint_dir: Path
-):
+def test_list_checkpoints_skips_invalid_json(manager: CheckpointManager, checkpoint_dir: Path):
     # Save a valid checkpoint
     cp = Checkpoint(checkpoint_id="cp-valid", workflow_name="wf")
     manager.save(cp)

@@ -202,7 +202,9 @@ def test_resolve_env_fallback(monkeypatch):
 
 def test_resolve_dict_overrides_env(monkeypatch):
     monkeypatch.setenv("TEST_AC_VAR2", "from_env")
-    result = WorkflowParser.resolve_variables("Value is ${TEST_AC_VAR2}", {"TEST_AC_VAR2": "from_dict"})
+    result = WorkflowParser.resolve_variables(
+        "Value is ${TEST_AC_VAR2}", {"TEST_AC_VAR2": "from_dict"}
+    )
     assert result == "Value is from_dict"
 
 
@@ -250,9 +252,7 @@ def test_resolve_task_outputs_multiple():
 
 
 def test_resolve_task_outputs_unresolved():
-    result = WorkflowParser.resolve_task_outputs(
-        "${missing.output} stays", {}
-    )
+    result = WorkflowParser.resolve_task_outputs("${missing.output} stays", {})
     assert result == "${missing.output} stays"
 
 

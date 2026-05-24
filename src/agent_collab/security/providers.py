@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 from agent_collab.security import (
     APIKey,
@@ -12,13 +11,10 @@ from agent_collab.security import (
     AuditLog,
     AuditProvider,
     AuthProvider,
-    Permission,
     Tenant,
     TenantProvider,
     User,
-    UserRole,
     generate_api_key,
-    hash_password,
     verify_password,
 )
 
@@ -36,7 +32,7 @@ class InMemoryAuthProvider(AuthProvider):
         for user in self._users.values():
             if user.username == username and user.is_active:
                 if verify_password(password, user.hashed_password):
-                    user.last_login = datetime.now(timezone.utc)
+                    user.last_login = datetime.now(UTC)
                     return user
         return None
 
@@ -56,7 +52,7 @@ class InMemoryAuthProvider(AuthProvider):
         """Update a user."""
         if user.id not in self._users:
             raise ValueError(f"User {user.id} not found")
-        user.updated_at = datetime.now(timezone.utc)
+        user.updated_at = datetime.now(UTC)
         self._users[user.id] = user
         logger.info(f"User {user.id} updated")
         return user
@@ -94,7 +90,7 @@ class InMemoryTenantProvider(TenantProvider):
         """Update a tenant."""
         if tenant.id not in self._tenants:
             raise ValueError(f"Tenant {tenant.id} not found")
-        tenant.updated_at = datetime.now(timezone.utc)
+        tenant.updated_at = datetime.now(UTC)
         self._tenants[tenant.id] = tenant
         logger.info(f"Tenant {tenant.id} updated")
         return tenant
@@ -134,14 +130,15 @@ class InMemoryAPIKeyProvider(APIKeyProvider):
     async def validate_api_key(self, raw_key: str) -> APIKey | None:
         """Validate an API key."""
         import hashlib
+
         key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
 
         for api_key in self._api_keys.values():
             if api_key.key_hash == key_hash and api_key.is_active:
                 # Check expiration
-                if api_key.expires_at and api_key.expires_at < datetime.now(timezone.utc):
+                if api_key.expires_at and api_key.expires_at < datetime.now(UTC):
                     return None
-                api_key.last_used = datetime.now(timezone.utc)
+                api_key.last_used = datetime.now(UTC)
                 return api_key
         return None
 
@@ -198,4 +195,4 @@ class InMemoryAuditProvider(AuditProvider):
         filtered.sort(key=lambda x: x.timestamp, reverse=True)
 
         # Apply pagination
-        return filtered[offset:offset + limit]
+        return filtered[offset : offset + limit]

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from datetime import datetime, timedelta, timezone
 
 from agent_collab.security import (
     APIKey,
@@ -13,10 +12,9 @@ from agent_collab.security import (
     User,
     UserRole,
     generate_api_key,
-    hash_password,
     has_permission,
+    hash_password,
     verify_password,
-    ROLE_PERMISSIONS,
 )
 from agent_collab.security.providers import (
     InMemoryAPIKeyProvider,
@@ -246,9 +244,24 @@ class TestInMemoryAuthProvider:
         assert retrieved.username == "testuser"
 
     async def test_get_users_by_tenant(self, provider):
-        user1 = User(id="user_1", username="user1", tenant_id="tenant_1", hashed_password=hash_password("password"))
-        user2 = User(id="user_2", username="user2", tenant_id="tenant_1", hashed_password=hash_password("password"))
-        user3 = User(id="user_3", username="user3", tenant_id="tenant_2", hashed_password=hash_password("password"))
+        user1 = User(
+            id="user_1",
+            username="user1",
+            tenant_id="tenant_1",
+            hashed_password=hash_password("password"),
+        )
+        user2 = User(
+            id="user_2",
+            username="user2",
+            tenant_id="tenant_1",
+            hashed_password=hash_password("password"),
+        )
+        user3 = User(
+            id="user_3",
+            username="user3",
+            tenant_id="tenant_2",
+            hashed_password=hash_password("password"),
+        )
 
         await provider.create_user(user1)
         await provider.create_user(user2)

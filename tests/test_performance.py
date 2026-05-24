@@ -79,10 +79,7 @@ async def test_parallel_execution_performance():
         )
 
         # Create 20 tasks
-        tasks = [
-            TaskConfig(id=f"task-{i}", agent="fast", prompt=f"Task {i}")
-            for i in range(20)
-        ]
+        tasks = [TaskConfig(id=f"task-{i}", agent="fast", prompt=f"Task {i}") for i in range(20)]
 
         start_time = time.monotonic()
         await executor.execute_level(tasks)
@@ -109,7 +106,7 @@ async def test_scheduler_performance():
     # Create a large task graph
     tasks = []
     for i in range(100):
-        depends_on = [f"task-{i-1}"] if i > 0 else []
+        depends_on = [f"task-{i - 1}"] if i > 0 else []
         tasks.append(
             TaskConfig(
                 id=f"task-{i}",
@@ -148,10 +145,7 @@ async def test_large_workflow_execution():
     )
 
     # Create 50 tasks
-    tasks = [
-        TaskConfig(id=f"task-{i}", agent="fast", prompt=f"Task {i}")
-        for i in range(50)
-    ]
+    tasks = [TaskConfig(id=f"task-{i}", agent="fast", prompt=f"Task {i}") for i in range(50)]
 
     start_time = time.monotonic()
     results = await executor.execute_level(tasks)
@@ -168,10 +162,7 @@ async def test_memory_usage():
     import sys
 
     # Create a large number of tasks
-    tasks = [
-        TaskConfig(id=f"task-{i}", agent="fast", prompt=f"Task {i}")
-        for i in range(1000)
-    ]
+    tasks = [TaskConfig(id=f"task-{i}", agent="fast", prompt=f"Task {i}") for i in range(1000)]
 
     scheduler = TaskScheduler(tasks)
 
@@ -179,7 +170,7 @@ async def test_memory_usage():
     initial_size = sys.getsizeof(scheduler)
 
     # Execute the scheduler
-    levels = scheduler.get_execution_order()
+    scheduler.get_execution_order()
 
     # Get final memory usage
     final_size = sys.getsizeof(scheduler)
@@ -192,9 +183,9 @@ async def test_memory_usage():
 @pytest.mark.asyncio
 async def test_log_manager_performance():
     """Test LogManager performance with many entries."""
-    from agent_collab.storage.log_manager import LogManager
-
     import tempfile
+
+    from agent_collab.storage.log_manager import LogManager
 
     with tempfile.TemporaryDirectory() as tmpdir:
         log_manager = LogManager(log_dir=tmpdir)
@@ -202,14 +193,16 @@ async def test_log_manager_performance():
         # Add many entries
         start_time = time.monotonic()
         for i in range(1000):
-            log_manager.add_from_dict({
-                "task_id": f"task-{i}",
-                "agent": "fast",
-                "status": "success",
-                "duration": 0.1,
-                "output_summary": f"Task {i} completed",
-                "timestamp": time.time(),
-            })
+            log_manager.add_from_dict(
+                {
+                    "task_id": f"task-{i}",
+                    "agent": "fast",
+                    "status": "success",
+                    "duration": 0.1,
+                    "output_summary": f"Task {i} completed",
+                    "timestamp": time.time(),
+                }
+            )
         add_duration = time.monotonic() - start_time
 
         # Get statistics
@@ -219,7 +212,7 @@ async def test_log_manager_performance():
 
         # Save session
         start_time = time.monotonic()
-        log_path = log_manager.save_session("performance-test.json")
+        log_manager.save_session("performance-test.json")
         save_duration = time.monotonic() - start_time
 
         # Load session
@@ -258,10 +251,7 @@ async def test_cancellation_performance():
     )
 
     # Create many tasks
-    tasks = [
-        TaskConfig(id=f"task-{i}", agent="fast", prompt=f"Task {i}")
-        for i in range(100)
-    ]
+    tasks = [TaskConfig(id=f"task-{i}", agent="fast", prompt=f"Task {i}") for i in range(100)]
 
     # Start execution
     async def run_workflow():
@@ -329,10 +319,7 @@ async def test_statistics_performance():
     from agent_collab.core.scheduler import TaskScheduler
 
     # Create scheduler with many tasks
-    tasks = [
-        TaskConfig(id=f"task-{i}", agent="fast", prompt=f"Task {i}")
-        for i in range(100)
-    ]
+    tasks = [TaskConfig(id=f"task-{i}", agent="fast", prompt=f"Task {i}") for i in range(100)]
 
     scheduler = TaskScheduler(tasks)
 

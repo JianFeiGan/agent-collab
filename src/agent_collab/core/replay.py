@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING
 
-from agent_collab.agents.base import AgentResult, BaseAgent
 from agent_collab.core.checkpoint import Checkpoint, CheckpointManager
 from agent_collab.core.executor import TaskExecutor
 from agent_collab.core.scheduler import TaskScheduler
-from agent_collab.core.workflow import WorkflowConfig
+
+if TYPE_CHECKING:
+    from agent_collab.agents.base import AgentResult, BaseAgent
+    from agent_collab.core.workflow import WorkflowConfig
 
 
 class WorkflowReplayer:

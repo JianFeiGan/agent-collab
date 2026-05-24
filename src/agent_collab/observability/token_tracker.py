@@ -63,12 +63,14 @@ class TokenTracker:
             input_tokens: Number of input (prompt) tokens consumed.
             output_tokens: Number of output (completion) tokens consumed.
         """
-        self.usages.append(TokenUsage(
-            task_id=task_id,
-            agent=agent,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-        ))
+        self.usages.append(
+            TokenUsage(
+                task_id=task_id,
+                agent=agent,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            )
+        )
 
     def get_task_usage(self, task_id: str) -> TokenUsage | None:
         """Get the token usage record for a specific task.

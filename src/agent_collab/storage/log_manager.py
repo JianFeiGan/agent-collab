@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -151,12 +150,14 @@ class LogManager:
             try:
                 with open(log_file, encoding="utf-8") as f:
                     log_data = json.load(f)
-                sessions.append({
-                    "filename": log_file.name,
-                    "session_id": log_data.get("session_id", ""),
-                    "timestamp": log_data.get("timestamp", 0.0),
-                    "entry_count": len(log_data.get("entries", [])),
-                })
+                sessions.append(
+                    {
+                        "filename": log_file.name,
+                        "session_id": log_data.get("session_id", ""),
+                        "timestamp": log_data.get("timestamp", 0.0),
+                        "entry_count": len(log_data.get("entries", [])),
+                    }
+                )
             except (json.JSONDecodeError, KeyError):
                 continue
 
@@ -220,21 +221,31 @@ class LogManager:
         csv_path = self.log_dir / filename
         with open(csv_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow([
-                "task_id", "agent", "status", "duration", "timestamp",
-                "tokens_used", "attempt", "output_summary"
-            ])
+            writer.writerow(
+                [
+                    "task_id",
+                    "agent",
+                    "status",
+                    "duration",
+                    "timestamp",
+                    "tokens_used",
+                    "attempt",
+                    "output_summary",
+                ]
+            )
             for entry in entries:
-                writer.writerow([
-                    entry.task_id,
-                    entry.agent,
-                    entry.status,
-                    entry.duration,
-                    entry.timestamp,
-                    entry.tokens_used or "",
-                    entry.attempt,
-                    entry.output_summary[:100] if entry.output_summary else "",
-                ])
+                writer.writerow(
+                    [
+                        entry.task_id,
+                        entry.agent,
+                        entry.status,
+                        entry.duration,
+                        entry.timestamp,
+                        entry.tokens_used or "",
+                        entry.attempt,
+                        entry.output_summary[:100] if entry.output_summary else "",
+                    ]
+                )
 
         return csv_path
 

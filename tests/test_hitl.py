@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from datetime import datetime, timezone
 
 from agent_collab.hitl import (
     ApprovalHistory,

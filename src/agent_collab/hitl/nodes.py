@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from agent_collab.hitl import (
@@ -18,7 +18,7 @@ from agent_collab.hitl import (
 logger = logging.getLogger(__name__)
 
 
-class HITLNodeType(str, Enum):
+class HITLNodeType(StrEnum):
     """Type of HITL node."""
 
     APPROVAL = "approval"

@@ -7,14 +7,14 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime, timezone
+from enum import Enum, StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     """Status of a distributed task."""
 
     PENDING = "pending"
@@ -26,7 +26,7 @@ class TaskStatus(str, Enum):
     RETRYING = "retrying"
 
 
-class WorkerStatus(str, Enum):
+class WorkerStatus(StrEnum):
     """Status of a worker node."""
 
     IDLE = "idle"
@@ -35,7 +35,7 @@ class WorkerStatus(str, Enum):
     ERROR = "error"
 
 
-class LoadBalancingStrategy(str, Enum):
+class LoadBalancingStrategy(StrEnum):
     """Strategy for distributing tasks to workers."""
 
     ROUND_ROBIN = "round_robin"
@@ -59,8 +59,8 @@ class WorkerInfo:
     weight: int = 1
     capabilities: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
-    last_heartbeat: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    registered_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_heartbeat: datetime = field(default_factory=lambda: datetime.now(UTC))
+    registered_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -79,7 +79,7 @@ class DistributedTask:
     max_retries: int = 3
     retry_count: int = 0
     status: TaskStatus = TaskStatus.PENDING
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     started_at: datetime | None = None
     completed_at: datetime | None = None
     assigned_worker: str | None = None

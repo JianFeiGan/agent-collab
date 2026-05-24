@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import logging
 from importlib.metadata import entry_points
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from agent_collab.agents.base import AgentResult
 from agent_collab.plugins.hooks import HookRegistry
 from agent_collab.plugins.interfaces import (
     AgentPlugin,
     FormatterPlugin,
     HookPlugin,
 )
+
+if TYPE_CHECKING:
+    from agent_collab.agents.base import AgentResult
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +53,11 @@ class PluginManager:
         """
         eps = entry_points()
         # Python 3.12 returns SelectableGroups; 3.11 may return a dict-like.
-        group_eps = eps.select(group=_ENTRY_POINT_GROUP) if hasattr(eps, "select") else eps.get(_ENTRY_POINT_GROUP, [])  # type: ignore[union-attr]
+        group_eps = (
+            eps.select(group=_ENTRY_POINT_GROUP)
+            if hasattr(eps, "select")
+            else eps.get(_ENTRY_POINT_GROUP, [])
+        )  # type: ignore[union-attr]
         count = 0
         for ep in group_eps:
             try:
@@ -99,8 +105,7 @@ class PluginManager:
 
         if not registered:
             raise TypeError(
-                f"Plugin {plugin!r} is not an AgentPlugin, HookPlugin, "
-                "or FormatterPlugin"
+                f"Plugin {plugin!r} is not an AgentPlugin, HookPlugin, or FormatterPlugin"
             )
 
     # -- queries -------------------------------------------------------------
@@ -150,9 +155,7 @@ class PluginManager:
         Returns:
             The (possibly mutated) metadata dict.
         """
-        ctx = await self._hook_registry.trigger_before(
-            task_id, prompt, agent_name, metadata
-        )
+        ctx = await self._hook_registry.trigger_before(task_id, prompt, agent_name, metadata)
         return ctx.metadata
 
     async def trigger_after_task(
@@ -192,7 +195,5 @@ class PluginManager:
         Returns:
             The (possibly mutated) metadata dict.
         """
-        ctx = await self._hook_registry.trigger_failure(
-            task_id, error, result, metadata
-        )
+        ctx = await self._hook_registry.trigger_failure(task_id, error, result, metadata)
         return ctx.metadata

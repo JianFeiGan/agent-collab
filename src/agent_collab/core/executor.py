@@ -96,9 +96,7 @@ class TaskExecutor:
         merged: dict[str, str] = {**os.environ, **self.variables}
         resolved_prompt = WorkflowParser.resolve_variables(task.prompt, merged)
         # Resolve ${task_id.output} references from upstream tasks
-        resolved_prompt = WorkflowParser.resolve_task_outputs(
-            resolved_prompt, self.task_outputs
-        )
+        resolved_prompt = WorkflowParser.resolve_task_outputs(resolved_prompt, self.task_outputs)
 
         # Acquire locks for output files
         locked: list[str] = []
@@ -138,21 +136,8 @@ class TaskExecutor:
             if result.success:
                 self.task_outputs[task.id] = result.output
 
-            self.execution_log.append({
-                "task_id": task.id,
-                "agent": task.agent,
-                "status": "success" if result.success else "failed",
-                "duration": round(duration, 3),
-                "output_summary": result.output[:200] if result.output else "",
-                "timestamp": time.time(),
-                "tokens_used": result.tokens_used,
-                "files_changed": result.files_changed,
-                "attempt": attempt,
-            })
-
-            # Persist to LogManager if available
-            if self.log_manager is not None:
-                self.log_manager.add_from_dict({
+            self.execution_log.append(
+                {
                     "task_id": task.id,
                     "agent": task.agent,
                     "status": "success" if result.success else "failed",
@@ -162,7 +147,24 @@ class TaskExecutor:
                     "tokens_used": result.tokens_used,
                     "files_changed": result.files_changed,
                     "attempt": attempt,
-                })
+                }
+            )
+
+            # Persist to LogManager if available
+            if self.log_manager is not None:
+                self.log_manager.add_from_dict(
+                    {
+                        "task_id": task.id,
+                        "agent": task.agent,
+                        "status": "success" if result.success else "failed",
+                        "duration": round(duration, 3),
+                        "output_summary": result.output[:200] if result.output else "",
+                        "timestamp": time.time(),
+                        "tokens_used": result.tokens_used,
+                        "files_changed": result.files_changed,
+                        "attempt": attempt,
+                    }
+                )
 
             # Apply degradation policy on failure
             if not result.success and task.degradation is not None:
@@ -232,7 +234,7 @@ class TaskExecutor:
 
             # Wait with exponential backoff + jitter before next retry
             if attempt < max_attempts - 1:
-                delay = min(base_delay * (2 ** attempt), 60.0)
+                delay = min(base_delay * (2**attempt), 60.0)
                 jitter = delay * 0.25
                 delay = delay + random.uniform(-jitter, jitter)
                 delay = max(0.1, delay)  # Ensure positive delay
@@ -240,9 +242,7 @@ class TaskExecutor:
 
         return last_result, max_attempts  # type: ignore[return-value]
 
-    def _apply_degradation(
-        self, task: TaskConfig, result: AgentResult
-    ) -> AgentResult:
+    def _apply_degradation(self, task: TaskConfig, result: AgentResult) -> AgentResult:
         """Apply degradation policy after a task failure.
 
         Args:
@@ -333,7 +333,7 @@ class TaskExecutor:
         """
         self._cancelled = True
         self._cancel_event.set()
-        for task_id, task in self._running_tasks.items():
+        for _task_id, task in self._running_tasks.items():
             if not task.done():
                 task.cancel()
 
@@ -380,6 +380,7 @@ class TaskExecutor:
     def set_adaptive_concurrency(self, enabled: bool) -> None:
         """Enable or disable adaptive concurrency control."""
         self._adaptive_enabled = enabled
+
     def export_log(self, path: str) -> None:
         """Export the execution log to a JSON file.
 
