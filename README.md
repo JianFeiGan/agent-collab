@@ -1,42 +1,47 @@
 [中文版](README.zh-CN.md) | English
 
-# 🤖 AgentCollab
+# AgentCollab
 
-**Multi-agent orchestration engine for AI coding assistants.**
+**Let your AI coding tools work together.**
 
+[![CI](https://github.com/JianFeiGan/agent-collab/actions/workflows/ci.yml/badge.svg)](https://github.com/JianFeiGan/agent-collab/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/agent-collab.svg)](https://pypi.org/project/agent-collab/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-495%20passing-brightgreen.svg)](tests/)
-[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/JianFeiGan/agent-collab/releases)
 [![Coverage](https://img.shields.io/badge/coverage-82%25-green.svg)](tests/)
 
-Define workflows in YAML. AgentCollab schedules tasks, runs agents in parallel, prevents file conflicts, and merges results — so your AI coding team works together, not against each other.
+AgentCollab is a CLI tool that orchestrates multiple AI coding agents (Claude Code, Codex, Aider) to collaborate on a software project. Define your tasks in YAML — AgentCollab handles scheduling, parallel execution, file locking, and result merging.
 
 ---
 
-## Why AgentCollab?
+## How is this different from CrewAI / AutoGen?
 
-| Problem | Solution |
-|---------|----------|
-| Multiple AI agents editing the same files | File locking prevents write conflicts |
-| Manual task ordering across agents | DAG scheduler auto-resolves dependencies |
-| Sequential execution wastes time | Parallel execution of independent tasks |
-| No visibility into multi-agent runs | Rich TUI shows progress in real time |
-| Agent outputs need manual merging | Git-based merge strategy handles integration |
+AgentCollab is **not** a general-purpose agent framework. It's a thin orchestration layer over the AI coding tools you already use.
+
+| | AgentCollab | CrewAI | AutoGen | LangGraph |
+|--|------------|--------|---------|-----------|
+| **Interface** | CLI + YAML | Python SDK | Python SDK | Python SDK |
+| **Agents** | Your installed tools (Claude Code, Codex, Aider) | Custom LLM agents | Custom LLM agents | Custom LLM agents |
+| **File safety** | File locks + Git merge | None | None | None |
+| **Setup time** | 5 min (write YAML) | Hours (write Python) | Hours (write Python) | Hours (write Python) |
+| **Best for** | AI coding collaboration | General multi-agent | Conversational agents | Complex graph workflows |
+
+**When to use AgentCollab:** You want Claude Code, Codex, or Aider to work on different parts of your codebase simultaneously, without them stepping on each other's files.
+
+**When to use something else:** You need custom agent logic, tool definitions, or conversational agent loops.
 
 ---
 
-## Installation
+## Install
 
 ```bash
-# With pip
 pip install agent-collab
-
-# With uv (recommended)
+# or
 uv pip install agent-collab
 ```
 
-Requires Python 3.11+. You also need at least one AI agent CLI installed:
+Requires Python 3.11+ and at least one AI agent CLI:
 
 | Agent | Install |
 |-------|---------|
@@ -48,11 +53,9 @@ Requires Python 3.11+. You also need at least one AI agent CLI installed:
 
 ## Quick Start
 
-Create a workflow file `workflow.yaml`:
-
 ```yaml
-name: my-feature
-description: Implement a feature with code review
+# workflow.yaml — implement a feature, then review it
+name: feature-with-review
 
 agents:
   coder:
@@ -84,11 +87,40 @@ strategy:
   timeout_per_task: 300
 ```
 
-Run it:
-
 ```bash
 agent-collab run workflow.yaml
 ```
+
+---
+
+## Real-World Example
+
+The [`examples/real-world-demo.yaml`](examples/real-world-demo.yaml) workflow bootstraps a Python project with CI, tests, and documentation — **3 agents working in parallel**, then a reviewer validating everything:
+
+```
+Level 0 (parallel)           Level 1
+┌─────────────┐
+│ setup-ci     │──┐
+└─────────────┘  │
+┌─────────────┐  ├──→  ┌──────────────┐
+│ write-tests  │──┤    │  review-all   │
+└─────────────┘  │    └──────────────┘
+┌─────────────┐  │
+│ write-docs   │──┘
+└─────────────┘
+```
+
+```bash
+agent-collab run examples/real-world-demo.yaml
+```
+
+More examples in [`examples/`](examples/):
+
+| Workflow | Description |
+|----------|-------------|
+| [`fullstack.yaml`](examples/fullstack.yaml) | Build FastAPI backend + React frontend in parallel, then security review |
+| [`code-review.yaml`](examples/code-review.yaml) | Implement a feature, review it, then auto-fix issues |
+| [`refactor.yaml`](examples/refactor.yaml) | Refactor two modules in parallel, then integrate |
 
 ---
 
@@ -96,20 +128,16 @@ agent-collab run workflow.yaml
 
 ### `agent-collab run <workflow.yaml>`
 
-Execute a workflow. Tasks run in dependency order; independent tasks run in parallel.
+Execute a workflow. Independent tasks run in parallel; dependent tasks wait.
 
 ```bash
-agent-collab run workflow.yaml              # Run workflow
-agent-collab run workflow.yaml --verbose    # Show detailed output
+agent-collab run workflow.yaml
+agent-collab run workflow.yaml --verbose
 ```
 
 ### `agent-collab validate <workflow.yaml>`
 
-Validate a workflow file without executing it. Checks:
-- YAML syntax
-- Agent references exist
-- Dependency references exist
-- No circular dependencies
+Validate a workflow without executing. Checks YAML syntax, agent references, dependency references, and circular dependencies.
 
 ```bash
 agent-collab validate workflow.yaml
@@ -117,7 +145,7 @@ agent-collab validate workflow.yaml
 
 ### `agent-collab list-agents`
 
-Show registered agents and their availability status.
+Show registered agents and their availability.
 
 ```bash
 agent-collab list-agents
@@ -125,7 +153,7 @@ agent-collab list-agents
 
 ---
 
-## Workflow YAML Format
+## Workflow YAML Reference
 
 ```yaml
 name: workflow-name          # Required
@@ -133,8 +161,8 @@ description: What it does    # Optional
 
 agents:                      # Agent definitions
   agent-id:                  # Unique identifier
-    type: claude-code        # Agent type (claude-code | codex | aider)
-    model: sonnet            # Model to use (default: sonnet)
+    type: claude-code        # Agent type: claude-code | codex | aider | opencode
+    model: sonnet            # Model (default: sonnet)
     workdir: ./path          # Working directory (default: .)
     allowed_tools: [Read]    # Tools the agent may use
 
@@ -143,20 +171,14 @@ tasks:                       # Task definitions
     agent: agent-id          # Reference to an agent above
     prompt: |                # Instructions for the agent
       Do this specific thing.
-      Supports ${VAR} and ${VAR:-default} variables.
-      Can reference upstream output: ${task_id.output}
+      Supports ${VAR} variables and ${task_id.output} references.
     depends_on: [other-id]   # Tasks that must complete first
-    outputs: [path/]         # Files/dirs this task may modify
+    outputs: [path/]         # Files this task may modify
     merge_strategy: comments # How to handle outputs
-    priority: 10             # Higher = runs first in parallel level
-    when: "other_task.output contains 'success'"  # Conditional execution
+    priority: 10             # Higher = runs first within parallel level
 
-variables:                   # Workflow-level variables (v0.2+)
+variables:                   # Workflow-level variables
   env_name: production
-  max_retries: "3"
-
-include: []                  # Include external workflow files (v0.2+)
-  # - shared-tasks.yaml
 
 strategy:                    # Execution settings
   max_parallel: 4            # Max concurrent tasks (default: 4)
@@ -167,62 +189,21 @@ strategy:                    # Execution settings
 
 ---
 
-## Built-in Agents
-
-| Agent | Type | Best For |
-|-------|------|----------|
-| **Claude Code** | `claude-code` | Complex reasoning, multi-file edits, code review |
-| **Codex** | `codex` | Quick code generation, single-file tasks |
-| **Aider** | `aider` | Git-aware edits, pair programming style |
-| **OpenCode** | `opencode` | Open-source multi-model code assistant |
-
-All agents implement the `BaseAgent` interface. See [`src/agent_collab/agents/`](src/agent_collab/agents/) for the adapter implementations.
-
-> **Want to build your own agent adapter?** See the [Agent Adapter Development Guide](docs/agent-adapter-guide.md) for a complete walkthrough.
-
----
-
-## Examples
-
-The [`examples/`](examples/) directory contains ready-to-use workflows:
-
-| Workflow | Description |
-|----------|-------------|
-| [`fullstack.yaml`](examples/fullstack.yaml) | Build a FastAPI backend + React frontend in parallel, then review |
-| [`code-review.yaml`](examples/code-review.yaml) | Implement a feature, review it, then auto-fix issues |
-| [`refactor.yaml`](examples/refactor.yaml) | Refactor two modules in parallel, then integrate changes |
-
----
-
 ## Architecture
 
-```
-workflow.yaml
-    │
-    ▼
-┌──────────────┐    Pydantic validation + cycle detection
-│ WorkflowParser│
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐    Kahn's algorithm → parallel execution levels
-│ TaskScheduler│
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐    asyncio.Semaphore-limited parallel dispatch
-│ TaskExecutor ├────────────────────┐
-└──────┬───────┘                    │
-       │                            ▼
-┌──────┴───────┐          ┌──────────────┐
-│FileLockManager│          │ BaseAgent    │
-│ (fcntl locks) │          │ (subprocess) │
-└──────┬───────┘          └──────────────┘
-       │
-       ▼
-┌──────────────┐    Git branch/merge workflow
-│ ResultMerger │
-└──────────────┘
+```mermaid
+graph TD
+    A[workflow.yaml] --> B[WorkflowParser]
+    B -->|Pydantic validation + cycle detection| C[TaskScheduler]
+    C -->|Kahn's algorithm → parallel levels| D[TaskExecutor]
+    D -->|asyncio.Semaphore| E[Agent Adapters]
+    D -->|fcntl locks| F[FileLockManager]
+    E --> G[Claude Code]
+    E --> H[Codex]
+    E --> I[Aider]
+    E --> J[OpenCode]
+    D --> K[ResultMerger]
+    K -->|Git branch/merge| L[Integrated Output]
 ```
 
 ---
