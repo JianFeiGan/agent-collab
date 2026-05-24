@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-collab"
-version = "2.0.0"
+version = "2.4.0"
 description = "Multi-Agent Orchestration Engine — orchestrate Claude Code, Codex, Aider to collaborate on projects"
 readme = "README.md"
 license = {text = "MIT"}
@@ -59,4 +59,5 @@ testpaths = ["tests"]
 [dependency-groups]
 dev = [
     "psutil>=7.2.2",
+    "pytest-cov>=7.1.0",
 ]
