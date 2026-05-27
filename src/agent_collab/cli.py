@@ -5,21 +5,22 @@ from __future__ import annotations
 import asyncio
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
-from agent_collab.agents.aider import AiderAgent
-from agent_collab.agents.base import BaseAgent
-from agent_collab.agents.claude_code import ClaudeCodeAgent
-from agent_collab.agents.codex import CodexAgent
+from agent_collab import __version__
 from agent_collab.core.checkpoint import CheckpointManager
 from agent_collab.core.executor import TaskExecutor
 from agent_collab.core.replay import WorkflowReplayer
 from agent_collab.core.scheduler import TaskScheduler
 from agent_collab.core.workflow import WorkflowParser
 from agent_collab.display.progress import ProgressDisplay
+
+if TYPE_CHECKING:
+    from agent_collab.agents.base import BaseAgent
 
 app = typer.Typer(
     name="agent-collab",
@@ -28,6 +29,20 @@ app = typer.Typer(
 )
 console = Console()
 progress = ProgressDisplay()
+
+
+# ── Version callback ──────────────────────────────────────────────
+
+
+@app.callback(invoke_without_command=True)
+def _version(
+    version: bool = typer.Option(False, "--version", "-v", is_eager=True),
+) -> None:
+    """Agent Collab CLI."""
+    if version:
+        console.print(f"agent-collab {__version__}")
+        raise typer.Exit()
+
 
 # ── Agent registry (lazy initialization) ─────────────────────────────
 
@@ -38,6 +53,9 @@ def _get_agent_registry() -> dict[str, BaseAgent]:
     """Get or create the agent registry with lazy initialization."""
     global _AGENT_REGISTRY
     if _AGENT_REGISTRY is None:
+        from agent_collab.agents.aider import AiderAgent
+        from agent_collab.agents.claude_code import ClaudeCodeAgent
+        from agent_collab.agents.codex import CodexAgent
         from agent_collab.agents.opencode import OpenCodeAgent
 
         _AGENT_REGISTRY = {

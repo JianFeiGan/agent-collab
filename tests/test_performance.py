@@ -340,3 +340,152 @@ async def test_statistics_performance():
 
     # Verify data
     assert len(stats) == 100
+
+
+# ── Startup & Import Benchmarks ────────────────────────────────────
+
+
+def test_cli_startup_time():
+    """Measure CLI startup time (--help should be fast)."""
+    import subprocess
+
+    # Cold start: fresh Python process
+    start = time.monotonic()
+    result = subprocess.run(
+        ["uv", "run", "agent-collab", "--help"],
+        capture_output=True,
+        text=True,
+        cwd="/Volumes/macmini_disk/HermesWork/GitHub/agent-collab",
+    )
+    duration = time.monotonic() - start
+
+    assert result.returncode == 0
+    assert "agent-collab" in result.stdout.lower()
+    # CLI --help should complete in under 3 seconds (cold start with uv)
+    assert duration < 3.0, f"CLI startup took {duration:.2f}s (expected < 3.0s)"
+
+
+def test_version_startup_time():
+    """Measure --version startup time (should be very fast with lazy imports)."""
+    import subprocess
+
+    start = time.monotonic()
+    result = subprocess.run(
+        ["uv", "run", "agent-collab", "--version"],
+        capture_output=True,
+        text=True,
+        cwd="/Volumes/macmini_disk/HermesWork/GitHub/agent-collab",
+    )
+    duration = time.monotonic() - start
+
+    assert result.returncode == 0
+    assert "3.1.0" in result.stdout
+    # --version should be very fast since it doesn't load heavy modules
+    assert duration < 3.0, f"Version check took {duration:.2f}s (expected < 3.0s)"
+
+
+def test_import_overhead():
+    """Measure import overhead of the agent_collab package."""
+    import subprocess
+
+    # Time just importing the package
+    script = """
+import time
+start = time.monotonic()
+import agent_collab
+from agent_collab.cli import app
+duration = time.monotonic() - start
+print(f"{duration:.4f}")
+"""
+    result = subprocess.run(
+        ["uv", "run", "python", "-c", script],
+        capture_output=True,
+        text=True,
+        cwd="/Volumes/macmini_disk/HermesWork/GitHub/agent-collab",
+    )
+    assert result.returncode == 0
+    import_time = float(result.stdout.strip())
+    # Import should complete in under 2 seconds
+    assert import_time < 2.0, f"Import took {import_time:.2f}s (expected < 2.0s)"
+
+
+# ── Large Workflow DAG Benchmarks ──────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_diamond_dag_performance():
+    """Test scheduler with diamond dependency pattern (wide fan-out/fan-in)."""
+    # Diamond: 1 root -> 20 parallel -> 20 parallel -> 1 sink
+    tasks = [TaskConfig(id="root", agent="fast", prompt="Root")]
+
+    # Layer 1: fan-out from root
+    for i in range(20):
+        tasks.append(
+            TaskConfig(id=f"mid1-{i}", agent="fast", prompt=f"Mid1 {i}", depends_on=["root"])
+        )
+
+    # Layer 2: each mid1 depends on all mid1 (fan-out from mid1)
+    for i in range(20):
+        tasks.append(
+            TaskConfig(
+                id=f"mid2-{i}",
+                agent="fast",
+                prompt=f"Mid2 {i}",
+                depends_on=[f"mid1-{j}" for j in range(20)],
+            )
+        )
+
+    # Sink: depends on all mid2
+    tasks.append(
+        TaskConfig(id="sink", agent="fast", prompt="Sink", depends_on=[f"mid2-{i}" for i in range(20)])
+    )
+
+    start = time.monotonic()
+    scheduler = TaskScheduler(tasks)
+    levels = scheduler.get_execution_order()
+    duration = time.monotonic() - start
+
+    # Should have: root(1) -> mid1(20) -> mid2(20) -> sink(1) = 4 levels
+    assert len(levels) == 4
+    assert len(levels[0]) == 1   # root
+    assert len(levels[1]) == 20  # mid1
+    assert len(levels[2]) == 20  # mid2
+    assert len(levels[3]) == 1   # sink
+    # Diamond DAG sort should be fast even with 400+ edges
+    assert duration < 1.0, f"Diamond DAG sort took {duration:.2f}s (expected < 1.0s)"
+
+
+@pytest.mark.asyncio
+async def test_parallel_throughput_benchmark():
+    """Benchmark parallel throughput at different concurrency levels."""
+    agent = FastAgent(delay=0.01)
+    agents = {"fast": agent}
+    agent_configs = {
+        "fast": AgentConfig(
+            type="fast",
+            workdir=".",
+            allowed_tools=["Read", "Write"],
+        )
+    }
+
+    # Test with 50 tasks at concurrency 10
+    strategy = StrategyConfig(max_parallel=10)
+    executor = TaskExecutor(
+        agents=agents,
+        agent_configs=agent_configs,
+        strategy=strategy,
+    )
+
+    tasks = [TaskConfig(id=f"task-{i}", agent="fast", prompt=f"Task {i}") for i in range(50)]
+
+    start = time.monotonic()
+    results = await executor.execute_level(tasks)
+    duration = time.monotonic() - start
+
+    assert len(results) == 50
+    assert all(r.success for r in results.values())
+
+    # With concurrency 10 and 50 tasks at 0.01s each, should take ~0.05s
+    # Allow generous margin for test overhead
+    throughput = 50 / duration
+    assert throughput > 100, f"Throughput {throughput:.0f} tasks/s (expected > 100)"
