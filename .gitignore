@@ -21,3 +21,6 @@ venv/
 *.swo
 .DS_Store
 .hermes/
+.claude/
+.codex/
+performance_results/
