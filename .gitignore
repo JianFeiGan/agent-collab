@@ -22,5 +22,4 @@ venv/
 .DS_Store
 .hermes/
 .claude/
-.codex/
 performance_results/
