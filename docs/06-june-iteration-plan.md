@@ -23,10 +23,12 @@
 - [ ] 支持 task output 传递给下游任务（${task_id.output}）
 
 ### 06-05~07：社区建设
-- [ ] 提交 Awesome List PR（awesome-ai-agents、awesome-developer-tools、awesome-python）
+- [x] 提交 Awesome List PR（awesome-ai-agents）— PR #1054
+- [x] 提交 Awesome List PR（awesome-python）— PR #3185
+- [ ] 提交 Awesome List PR（awesome-cli-apps）
 - [ ] 发布技术文章到掘金、CSDN
 - [ ] 创建 GitHub Discussions 社区
-- [ ] 编写贡献指南（CONTRIBUTING.md）
+- [x] 编写贡献指南（CONTRIBUTING.md）
 
 ---
 
