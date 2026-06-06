@@ -1,0 +1,36 @@
+title: "[Idea]: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for ideas that need discussion before they become implementation issues.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or opportunity
+      description: What user need or workflow limitation should AgentCollab address?
+      placeholder: It is hard to...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: Describe the feature, behavior, or API you imagine.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Mention current workarounds or competing designs.
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: What would make this successful?
+      description: Optional acceptance criteria or examples.
+    validations:
+      required: false

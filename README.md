@@ -212,6 +212,8 @@ graph TD
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and how to add new agent adapters.
 
+For usage questions, workflow design help, feature ideas, and community examples, join [GitHub Discussions](https://github.com/JianFeiGan/agent-collab/discussions). The community structure and moderation workflow are documented in [docs/github-discussions-community.md](docs/github-discussions-community.md).
+
 ---
 
 ## License

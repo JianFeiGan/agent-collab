@@ -1,0 +1,29 @@
+title: "[Show and Tell]: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share a workflow, integration, demo, or real-world AgentCollab usage pattern.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What did you build?
+      description: Give a short overview of the project or workflow.
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow or architecture
+      description: Paste the workflow YAML, diagram, or a link to the repository if public.
+      render: markdown
+    validations:
+      required: false
+  - type: textarea
+    id: lessons
+    attributes:
+      label: Lessons learned
+      description: What worked well? What should other users watch out for?
+    validations:
+      required: false

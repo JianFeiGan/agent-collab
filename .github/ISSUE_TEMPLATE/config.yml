@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Ask a question or discuss workflow design
+    url: https://github.com/JianFeiGan/agent-collab/discussions/categories/q-a
+    about: Use GitHub Discussions for usage questions, setup help, and workflow design advice.
+  - name: Propose an idea before opening an issue
+    url: https://github.com/JianFeiGan/agent-collab/discussions/categories/ideas
+    about: Start with Discussions when the problem or scope still needs community feedback.

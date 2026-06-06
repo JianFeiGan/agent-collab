@@ -1,0 +1,30 @@
+title: "[Question]: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for using AgentCollab. For reproducible bugs, please open an Issue instead.
+  - type: textarea
+    id: question
+    attributes:
+      label: What are you trying to do?
+      description: Describe the goal, workflow, or behavior you need help with.
+      placeholder: I want Claude Code and Codex to work on separate tasks, but...
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Current setup
+      description: Include AgentCollab version, OS, installed agent CLIs, and a minimal workflow YAML if relevant.
+      render: markdown
+    validations:
+      required: false
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: Link docs, commands, or logs that may help others answer.
+    validations:
+      required: false
