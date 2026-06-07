@@ -96,11 +96,11 @@ AGENT_REGISTRY = _RegistryProxy()
 # ── Commands ────────────────────────────────────────────────────────
 
 
-async def _run_workflow(config, scheduler, levels) -> tuple[int, int]:
+async def _run_workflow(config, scheduler, levels) -> tuple[int, int, TaskExecutor]:
     """Execute all workflow levels asynchronously.
 
     Returns:
-        Tuple of (total_tasks, total_failed).
+        Tuple of (total_tasks, total_failed, executor).
     """
     # Build agent map: config name -> agent instance
     agent_map: dict[str, BaseAgent] = {}
@@ -135,7 +135,9 @@ async def _run_workflow(config, scheduler, levels) -> tuple[int, int]:
         results = await executor.execute_level(tasks)
 
         for task in tasks:
-            result = results[task.id]
+            result = results.get(task.id)
+            if result is None:
+                continue
             progress.show_task_start(task.id, task.agent)
             total_tasks += 1
             if result.success:
@@ -147,7 +149,38 @@ async def _run_workflow(config, scheduler, levels) -> tuple[int, int]:
     elapsed = time.monotonic() - start_time
     progress.show_workflow_complete(total_tasks, total_failed, elapsed)
 
-    return total_tasks, total_failed
+    return total_tasks, total_failed, executor
+
+
+def _save_execution_log(
+    executor: TaskExecutor,
+    workflow_name: str,
+) -> str | None:
+    """Save the execution log to a JSON file in .agent-collab/logs/.
+
+    Args:
+        executor: The TaskExecutor whose log to save.
+        workflow_name: Name of the workflow for the filename.
+
+    Returns:
+        The path the log was saved to, or None on failure.
+    """
+    import json
+    from datetime import datetime
+
+    log_dir = Path(".agent-collab/logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_name = workflow_name.replace(" ", "_").replace("/", "_")
+    log_path = log_dir / f"{safe_name}_{timestamp}.json"
+
+    try:
+        executor.export_log(str(log_path))
+        return str(log_path)
+    except OSError as exc:
+        progress.show_error(f"Failed to save execution log: {exc}")
+        return None
 
 
 @app.command()
@@ -170,17 +203,53 @@ def run(
         progress.show_error(str(exc))
         raise typer.Exit(code=1) from exc
 
+    # Shared container so KeyboardInterrupt handler can access the executor
+    executor_container: list[TaskExecutor | None] = [None]
+
     try:
-        total_tasks, total_failed = asyncio.run(_run_workflow(config, scheduler, levels))
+        total_tasks, total_failed, executor = asyncio.run(
+            _run_workflow(config, scheduler, levels)
+        )
+        executor_container[0] = executor
+
+        # Auto-save execution log
+        log_path = _save_execution_log(executor, config.name)
+        if log_path:
+            console.print(f"[dim]Execution log saved to {log_path}[/dim]")
+
+        if executor.is_cancelled():
+            active = executor.active_task_count
+            console.print(
+                f"[yellow]⚠[/] Workflow cancelled. "
+                f"Completed: {total_tasks}, still running: {active}"
+            )
+            raise typer.Exit(code=130) from None
+
+        if total_failed > 0:
+            raise typer.Exit(code=1)
     except ValueError as exc:
         progress.show_error(str(exc))
         raise typer.Exit(code=1) from exc
     except KeyboardInterrupt:
-        console.print("\n[yellow]⚠[/] Workflow execution cancelled by user")
+        exec_ = executor_container[0]
+        if exec_ is not None:
+            # Trigger cancellation
+            exec_.cancel_all()
+            # Try to wait briefly for running tasks
+            try:
+                pending = asyncio.run(exec_.graceful_shutdown(timeout=2.0))
+            except (RuntimeError, asyncio.CancelledError):
+                pending = exec_.active_task_count
+            # Save whatever log we have
+            log_path = _save_execution_log(exec_, config.name)
+            msg = "\n[yellow]⚠[/] Workflow cancelled by user"
+            if log_path:
+                msg += f"\n[dim]Execution log saved to {log_path}[/dim]"
+            msg += f"\n[dim]{pending} task(s) still running at exit[/dim]"
+            console.print(msg)
+        else:
+            console.print("\n[yellow]⚠[/] Workflow cancelled by user")
         raise typer.Exit(code=130) from None
-
-    if total_failed > 0:
-        raise typer.Exit(code=1)
 
 
 @app.command(name="validate")

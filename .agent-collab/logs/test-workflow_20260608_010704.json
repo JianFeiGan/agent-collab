@@ -1,0 +1,24 @@
+[
+  {
+    "task_id": "t1",
+    "agent": "worker",
+    "status": "success",
+    "duration": 0.0,
+    "output_summary": "ok",
+    "timestamp": 1780852024.958242,
+    "tokens_used": null,
+    "files_changed": [],
+    "attempt": 1
+  },
+  {
+    "task_id": "t2",
+    "agent": "worker",
+    "status": "success",
+    "duration": 0.0,
+    "output_summary": "ok",
+    "timestamp": 1780852024.958555,
+    "tokens_used": null,
+    "files_changed": [],
+    "attempt": 1
+  }
+]

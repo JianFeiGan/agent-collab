@@ -322,6 +322,11 @@ class TaskExecutor:
 
         return collected
 
+    @property
+    def active_task_count(self) -> int:
+        """Return the number of currently running asyncio tasks."""
+        return sum(1 for t in self._running_tasks.values() if not t.done())
+
     def get_execution_log(self) -> list[dict[str, object]]:
         """Return the full execution log recorded so far."""
         return list(self.execution_log)
@@ -336,6 +341,25 @@ class TaskExecutor:
         for _task_id, task in self._running_tasks.items():
             if not task.done():
                 task.cancel()
+
+    async def graceful_shutdown(self, timeout: float = 2.0) -> int:
+        """Cancel all tasks and wait briefly for them to finish.
+
+        Args:
+            timeout: Maximum seconds to wait for running tasks to complete.
+
+        Returns:
+            Number of tasks still running after the timeout.
+        """
+        self.cancel_all()
+        if self._running_tasks:
+            _, pending = await asyncio.wait(
+                list(self._running_tasks.values()),
+                timeout=timeout,
+                return_when=asyncio.ALL_COMPLETED,
+            )
+            return len(pending)
+        return 0
 
     def is_cancelled(self) -> bool:
         """Check if execution has been cancelled."""
