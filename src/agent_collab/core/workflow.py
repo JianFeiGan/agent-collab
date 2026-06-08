@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from agent_collab.core.degradation import TaskDegradation
 
@@ -87,14 +87,59 @@ class AgentConfig(BaseModel):
 
 
 class StrategyConfig(BaseModel):
-    """Execution strategy configuration."""
+    """Execution strategy configuration (advisory, per-strategy hints)."""
 
-    max_parallel: int = 4
+    # ``max_parallel`` is the historical (v3.1.x and earlier) name for
+    # the per-strategy concurrency knob. v3.2.0 promoted it to a
+    # top-level ``WorkflowConfig.global_max_parallel`` setting, with
+    # ``max_parallel_hint`` here as a per-strategy override. We accept
+    # the old name as a regular field and forward it to the hint via
+    # a ``model_validator`` so existing YAML configs keep loading.
+    max_parallel: int | None = None
+    """DEPRECATED: prefer ``max_parallel_hint`` or the workflow-level
+    ``global_max_parallel``. Kept for backward compatibility with
+    v3.1.x YAMLs that placed the value on the strategy section."""
+
+    max_parallel_hint: int | None = None
+    """Optional per-strategy concurrency hint.
+
+    When set, this strategy's tasks may run with concurrency up to
+    ``min(hint, workflow.global_max_parallel)``. When ``None`` (default),
+    the strategy follows the workflow's ``global_max_parallel`` directly.
+
+    Note: ``max_parallel`` is now a top-level workflow setting. This field
+    is kept for backwards compatibility and per-strategy overrides.
+    """
     retry_on_failure: bool = False
     max_retries: int = 0
     timeout_per_task: int = 600
     retry_delay: float = 1.0
     checkpoint_enabled: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _promote_legacy_max_parallel(cls, values: Any) -> Any:
+        """Forward the old ``max_parallel`` key to ``max_parallel_hint``.
+
+        Pre-v3.2.0 YAMLs put the concurrency cap inside ``strategy`` as
+        ``max_parallel: N``. We mirror that into ``max_parallel_hint``
+        when no explicit hint was provided so the rest of the code only
+        has to look at one place.
+        """
+        if not isinstance(values, dict):
+            return values
+        if "max_parallel_hint" not in values and "max_parallel" in values:
+            legacy = values.get("max_parallel")
+            if legacy is not None:
+                values["max_parallel_hint"] = legacy
+        return values
+
+    def resolved_max_parallel_hint(self) -> int | None:
+        """Return the effective per-strategy hint, including legacy
+        ``max_parallel`` if it was supplied."""
+        if self.max_parallel_hint is not None:
+            return self.max_parallel_hint
+        return self.max_parallel
 
 
 class WorkflowConfig(BaseModel):
@@ -109,6 +154,57 @@ class WorkflowConfig(BaseModel):
     strategy: StrategyConfig = Field(default_factory=StrategyConfig)
     variables: dict[str, str] = Field(default_factory=dict)
     include: list[str] = Field(default_factory=list)
+
+    # ------------------------------------------------------------------
+    # Global concurrency control (signal-semaphore optimization)
+    # ------------------------------------------------------------------
+    # The semaphore used to cap in-flight agent calls is shared across all
+    # execution levels so that the workflow's true parallelism never exceeds
+    # what the user asked for, regardless of how many levels are produced by
+    # the dependency graph.
+    global_max_parallel: int = 4
+    """Maximum number of agent tasks allowed to run in parallel across
+    the entire workflow. Acts as the upper bound for the cross-level
+    asyncio.Semaphore that the executor uses. Default: 4."""
+
+    enable_adaptive_concurrency: bool = True
+    """When True, the executor will gently increase concurrency when tasks
+    complete quickly and decrease it when they run long, within
+    ``[1, global_max_parallel]`` (or ``[1, strategy.max_parallel_hint]``
+    when a per-strategy hint is set)."""
+
+    @field_validator("global_max_parallel")
+    @classmethod
+    def _validate_global_max_parallel(cls, value: int) -> int:
+        """Clamp the global semaphore bound to a safe range.
+
+        ``1`` keeps workflows fully serial (useful for debugging). The
+        upper bound protects against runaway values that would exhaust
+        file descriptors / sockets on the host.
+        """
+        if value < 1:
+            raise ValueError(
+                f"global_max_parallel must be >= 1, got {value}"
+            )
+        if value > 50:
+            raise ValueError(
+                f"global_max_parallel must be <= 50 to protect host "
+                f"resources, got {value}"
+            )
+        return value
+
+    def effective_max_parallel(self) -> int:
+        """Resolve the effective concurrency ceiling for this workflow.
+
+        Order of precedence:
+          1. ``strategy.max_parallel_hint`` (per-strategy override) if set
+          2. ``strategy.max_parallel`` (legacy v3.1.x field) if set
+          3. ``global_max_parallel`` (workflow-wide cap)
+        """
+        hint = self.strategy.resolved_max_parallel_hint()
+        if hint is None:
+            return self.global_max_parallel
+        return max(1, min(hint, self.global_max_parallel))
 
     @model_validator(mode="after")
     def validate_references(self) -> WorkflowConfig:

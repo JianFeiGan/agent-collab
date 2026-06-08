@@ -22,3 +22,4 @@ venv/
 .DS_Store
 .hermes/
 performance_results/
+.agent-collab/logs/

@@ -37,7 +37,7 @@
 ### 06-08~09：并行执行优化
 - [x] 任务取消机制（Ctrl+C 优雅停止所有运行中的 agent）
 - [x] 执行日志持久化（JSON 格式，方便回溯）
-- [ ] 并发控制信号量优化
+- [x] 并发控制信号量优化（max_parallel 提升为 WorkflowConfig.global_max_parallel；TaskExecutor 使用跨 level 共享的全局信号量；新增 14 个测试）
 
 ### 06-10~11：测试覆盖率提升
 - [ ] 测试覆盖率从 80% 提升到 90%+

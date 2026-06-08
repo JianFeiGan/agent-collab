@@ -113,6 +113,8 @@ async def _run_workflow(config, scheduler, levels) -> tuple[int, int, TaskExecut
         agents=agent_map,
         agent_configs=config.agents,
         strategy=config.strategy,
+        global_max_parallel=config.effective_max_parallel(),
+        enable_adaptive_concurrency=config.enable_adaptive_concurrency,
     )
 
     progress.show_workflow_start(

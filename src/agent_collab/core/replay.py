@@ -70,6 +70,8 @@ class WorkflowReplayer:
             agents=agents,
             agent_configs=config.agents,
             strategy=config.strategy,
+            global_max_parallel=config.effective_max_parallel(),
+            enable_adaptive_concurrency=config.enable_adaptive_concurrency,
         )
         executor.task_outputs = dict(checkpoint.task_outputs)
 
@@ -129,6 +131,8 @@ class WorkflowReplayer:
             agents=agents,
             agent_configs=config.agents,
             strategy=config.strategy,
+            global_max_parallel=config.effective_max_parallel(),
+            enable_adaptive_concurrency=config.enable_adaptive_concurrency,
         )
         if task_outputs:
             executor.task_outputs = task_outputs

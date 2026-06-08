@@ -60,6 +60,8 @@ class TaskExecutor:
         workflow_name: str = "",
         hook_registry: HookRegistry | None = None,
         log_manager: LogManager | None = None,
+        global_max_parallel: int | None = None,
+        enable_adaptive_concurrency: bool = True,
     ) -> None:
         self.agents = agents
         self.agent_configs = agent_configs
@@ -77,9 +79,42 @@ class TaskExecutor:
         self._running_tasks: dict[str, asyncio.Task] = {}
         self._cancel_event: asyncio.Event = asyncio.Event()
         self.log_manager = log_manager
-        self._current_parallel: int = strategy.max_parallel
+
+        # --------------------------------------------------------------
+        # Global semaphore (cross-level concurrency cap)
+        # --------------------------------------------------------------
+        # The semaphore is created once per executor and shared by every
+        # ``execute_level`` call. This guarantees the workflow never runs
+        # more than ``global_max_parallel`` agent tasks simultaneously,
+        # regardless of how many dependency levels the graph has.
+        #
+        # Resolution order (mirrors ``WorkflowConfig.effective_max_parallel``):
+        #   1. explicit ``global_max_parallel`` argument
+        #   2. ``strategy.max_parallel_hint`` (advisory per-strategy cap)
+        #   3. ``strategy.max_parallel`` (back-compat with v3.1.x and earlier)
+        #   4. default of 4
+        if global_max_parallel is not None:
+            resolved_max = max(1, min(int(global_max_parallel), 50))
+        else:
+            # ``resolved_max_parallel_hint`` covers both the new hint
+            # field and the legacy v3.1.x ``max_parallel`` attribute.
+            hint_fn = getattr(strategy, "resolved_max_parallel_hint", None)
+            hint = hint_fn() if callable(hint_fn) else None
+            if hint is None:
+                hint = getattr(strategy, "max_parallel_hint", None)
+            if hint is None:
+                # Back-compat: pre-v3.2.0 stored this on StrategyConfig.
+                hint = getattr(strategy, "max_parallel", None)
+            if hint is not None:
+                resolved_max = max(1, min(int(hint), 50))  # type: ignore[arg-type]
+            else:
+                resolved_max = 4
+
+        self._global_max_parallel: int = resolved_max
+        self._current_parallel: int = resolved_max
+        self._global_semaphore: asyncio.Semaphore = asyncio.Semaphore(resolved_max)
         self._task_durations: list[float] = []
-        self._adaptive_enabled: bool = True
+        self._adaptive_enabled: bool = enable_adaptive_concurrency
 
     async def execute_task(self, task: TaskConfig) -> AgentResult:
         """Execute a single task with retry logic and degradation support."""
@@ -275,11 +310,22 @@ class TaskExecutor:
         )
 
     async def execute_level(self, tasks: list[TaskConfig]) -> dict[str, AgentResult]:
-        """Execute a group of independent tasks in parallel."""
+        """Execute a group of independent tasks in parallel.
+
+        All levels share ``self._global_semaphore`` so that the cumulative
+        number of in-flight agent tasks never exceeds the configured cap,
+        even when there are many small levels in the dependency graph.
+        """
         if self._cancelled:
             return {}
 
-        semaphore = asyncio.Semaphore(self._current_parallel)
+        # Use the shared global semaphore instead of allocating a new one
+        # per level. This prevents transient over-parallelism when several
+        # levels run close together (or are scheduled concurrently by an
+        # outer driver). ``_current_parallel`` is the *displayed* setting;
+        # the semaphore itself stays at ``_global_max_parallel`` so the
+        # adaptive controller can never accidentally exceed the cap.
+        semaphore = self._global_semaphore
 
         async def _run(task: TaskConfig) -> tuple[str, AgentResult]:
             async with semaphore:
@@ -391,15 +437,46 @@ class TaskExecutor:
         recent = self._task_durations[-5:]
         avg_duration = sum(recent) / len(recent)
 
-        # Adjust concurrency based on average duration
-        if avg_duration < 10.0 and self._current_parallel < self.strategy.max_parallel * 2:
-            self._current_parallel = min(self._current_parallel + 1, self.strategy.max_parallel * 2)
+        # Adjust concurrency based on average duration. The cap is
+        # ``_global_max_parallel`` (workflow-wide), which is the
+        # authoritative ceiling. ``strategy.max_parallel_hint`` is honored
+        # as a tighter advisory cap when present.
+        cap = self._global_max_parallel
+        hint_fn = getattr(self.strategy, "resolved_max_parallel_hint", None)
+        hint = hint_fn() if callable(hint_fn) else getattr(self.strategy, "max_parallel_hint", None)
+        if hint is None:
+            hint = getattr(self.strategy, "max_parallel", None)
+        if hint is not None:
+            cap = max(1, min(cap, int(hint)))  # type: ignore[arg-type]
+
+        if avg_duration < 10.0 and self._current_parallel < cap * 2:
+            self._current_parallel = min(self._current_parallel + 1, cap * 2)
         elif avg_duration > 60.0 and self._current_parallel > 1:
             self._current_parallel = max(self._current_parallel - 1, 1)
 
     def get_current_concurrency(self) -> int:
-        """Get the current concurrency level."""
+        """Get the current concurrency level (display value, may move with
+        the adaptive controller)."""
         return self._current_parallel
+
+    def get_global_max_parallel(self) -> int:
+        """Return the workflow-wide cap on concurrent agent tasks.
+
+        This is the size of the shared semaphore — the true ceiling on
+        parallelism, irrespective of the adaptive controller.
+        """
+        return self._global_max_parallel
+
+    def available_concurrency(self) -> int:
+        """Return how many more agent tasks could start right now without
+        waiting on the global semaphore."""
+        sem = self._global_semaphore
+        # ``_value`` is the count of remaining permits (private but stable
+        # since Python 3.8). Fall back to the cap if introspection fails.
+        value = getattr(sem, "_value", None)
+        if value is None:
+            return self._global_max_parallel
+        return int(value)
 
     def set_adaptive_concurrency(self, enabled: bool) -> None:
         """Enable or disable adaptive concurrency control."""

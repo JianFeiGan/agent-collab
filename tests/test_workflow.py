@@ -39,7 +39,13 @@ def test_agent_config_defaults():
 
 def test_strategy_config_defaults():
     s = StrategyConfig()
-    assert s.max_parallel == 4
+    # v3.2.0: ``max_parallel`` is now a deprecated per-strategy hint field
+    # that defaults to None; the authoritative cap lives on
+    # ``WorkflowConfig.global_max_parallel``. The hint resolver should
+    # also return None when nothing is configured.
+    assert s.max_parallel is None
+    assert s.max_parallel_hint is None
+    assert s.resolved_max_parallel_hint() is None
     assert s.retry_on_failure is False
     assert s.max_retries == 0
     assert s.timeout_per_task == 600
