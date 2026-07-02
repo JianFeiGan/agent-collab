@@ -491,3 +491,375 @@ class TestMoAEngine:
         assert "Reference 2:" in prompt
         assert "response 2" in prompt
         assert "Please synthesize these responses" in prompt
+
+
+class TestMoAEngineAsync:
+    """Async tests for MoAEngine."""
+
+    @pytest.mark.asyncio
+    async def test_generate_success(self):
+        """Test MoAEngine.generate with a mock scheduler."""
+        from unittest.mock import AsyncMock
+
+        scheduler_config = SchedulerConfig(
+            models=[
+                ModelConfig(provider="openai", model="gpt-4o", api_key="key1"),
+                ModelConfig(provider="openai", model="gpt-4o-mini", api_key="key1"),
+            ],
+        )
+        scheduler = MultiModelScheduler(scheduler_config)
+
+        # Mock providers to avoid real API calls
+        mock_response = LLMResponse(
+            content="test response",
+            model="gpt-4o",
+            provider="openai",
+            input_tokens=10,
+            output_tokens=20,
+            cost_usd=0.001,
+            latency_seconds=0.5,
+        )
+
+        # Replace providers with mocks
+        for key in scheduler._providers:
+            provider = scheduler._providers[key]
+            provider.generate = AsyncMock(return_value=mock_response)
+
+        moa_config = MoAConfig(
+            reference_models=["gpt-4o"],
+            aggregator_model="gpt-4o",
+            num_reference_rounds=1,
+            num_references_per_round=2,
+        )
+        engine = MoAEngine(scheduler, moa_config)
+
+        result = await engine.generate("test prompt")
+
+        assert result.content == "test response"
+        assert len(result.reference_responses) == 2  # 1 round × 2 references
+        assert result.aggregator_response is not None
+        assert result.aggregator_response.content == "test response"
+        assert result.total_input_tokens > 0
+        assert result.total_output_tokens > 0
+
+    @pytest.mark.asyncio
+    async def test_generate_with_reference_failures(self):
+        """Test MoAEngine.generate handles reference model failures gracefully."""
+        scheduler_config = SchedulerConfig(
+            models=[
+                ModelConfig(provider="openai", model="gpt-4o", api_key="key1"),
+            ],
+        )
+        scheduler = MultiModelScheduler(scheduler_config)
+
+        mock_response = LLMResponse(
+            content="aggregated",
+            model="gpt-4o",
+            provider="openai",
+            input_tokens=5,
+            output_tokens=10,
+        )
+
+        call_count = [0]
+
+        async def mock_generate(prompt, system_prompt=None, **kwargs):
+            call_count[0] += 1
+            if call_count[0] <= 3:  # First 3 calls fail (2 refs + 1 retry = exhausted)
+                raise RuntimeError("Reference model failed")
+            return mock_response  # Aggregator succeeds after retries
+
+        for provider in scheduler._providers.values():
+            provider.generate = mock_generate
+
+        moa_config = MoAConfig(
+            reference_models=["gpt-4o"],
+            aggregator_model="gpt-4o",
+            num_reference_rounds=1,
+            num_references_per_round=1,
+        )
+        engine = MoAEngine(scheduler, moa_config)
+
+        result = await engine.generate("test prompt")
+
+        # Should still produce result from aggregator
+        assert result.content == "aggregated"
+        # Failed references should be skipped (gather with return_exceptions catches the errors)
+        assert len(result.reference_responses) == 0
+
+    @pytest.mark.asyncio
+    async def test_generate_with_system_prompt(self):
+        """Test MoAEngine.generate passes system_prompt through."""
+        from unittest.mock import AsyncMock
+
+        scheduler_config = SchedulerConfig(
+            models=[
+                ModelConfig(provider="openai", model="gpt-4o", api_key="key1"),
+            ],
+        )
+        scheduler = MultiModelScheduler(scheduler_config)
+
+        captured_system_prompts = []
+
+        async def mock_generate(prompt, system_prompt=None, **kwargs):
+            captured_system_prompts.append(system_prompt)
+            return LLMResponse(
+                content="response",
+                model="gpt-4o",
+                provider="openai",
+            )
+
+        for provider in scheduler._providers.values():
+            provider.generate = mock_generate
+
+        moa_config = MoAConfig(
+            reference_models=["gpt-4o"],
+            aggregator_model="gpt-4o",
+            num_reference_rounds=1,
+            num_references_per_round=1,
+        )
+        engine = MoAEngine(scheduler, moa_config)
+
+        await engine.generate("test prompt", system_prompt="You are a helpful assistant.")
+
+        # System prompt should be passed to both reference and aggregator calls
+        for sp in captured_system_prompts:
+            assert sp == "You are a helpful assistant."
+
+
+class TestSchedulerEdgeCases:
+    """Edge cases for MultiModelScheduler."""
+
+    def test_empty_providers(self):
+        config = SchedulerConfig(models=[])
+        scheduler = MultiModelScheduler(config)
+        assert len(scheduler._providers) == 0
+        with pytest.raises(RuntimeError, match="No providers available"):
+            scheduler._select_provider()
+
+    def test_no_enabled_providers(self):
+        config = SchedulerConfig(
+            models=[
+                ModelConfig(provider="openai", model="gpt-4o", api_key="key1", enabled=False),
+            ],
+        )
+        scheduler = MultiModelScheduler(config)
+        assert len(scheduler._providers) == 0
+
+    def test_invalid_provider_config(self):
+        """Provider with unsupported type should be skipped."""
+        config = SchedulerConfig(
+            models=[
+                ModelConfig(provider="nonexistent", model="test", api_key="key1"),
+            ],
+        )
+        scheduler = MultiModelScheduler(config)
+        assert len(scheduler._providers) == 0
+
+    def test_select_random_strategy(self):
+        config = SchedulerConfig(
+            models=[
+                ModelConfig(provider="openai", model="gpt-4o", api_key="key1"),
+                ModelConfig(provider="anthropic", model="claude-3-opus", api_key="key2"),
+            ],
+            strategy=SelectionStrategy.RANDOM,
+        )
+        scheduler = MultiModelScheduler(config)
+        key, provider = scheduler._select_provider()
+        assert key in ("openai/gpt-4o", "anthropic/claude-3-opus")
+        assert provider is not None
+
+    def test_select_latency_optimized(self):
+        config = SchedulerConfig(
+            models=[
+                ModelConfig(
+                    provider="openai", model="gpt-4o", api_key="key1",
+                    avg_latency_ms=500,
+                ),
+                ModelConfig(
+                    provider="anthropic", model="claude-3-opus", api_key="key2",
+                    avg_latency_ms=200,
+                ),
+            ],
+            strategy=SelectionStrategy.LATENCY_OPTIMIZED,
+        )
+        scheduler = MultiModelScheduler(config)
+        key, _ = scheduler._select_provider()
+        assert key == "anthropic/claude-3-opus"
+
+    def test_select_latency_optimized_with_stats(self):
+        """Latency-optimized should use recorded stats when available."""
+        config = SchedulerConfig(
+            models=[
+                ModelConfig(
+                    provider="openai", model="gpt-4o", api_key="key1",
+                    avg_latency_ms=1000,
+                ),
+                ModelConfig(
+                    provider="anthropic", model="claude-3-opus", api_key="key2",
+                    avg_latency_ms=200,
+                ),
+            ],
+            strategy=SelectionStrategy.LATENCY_OPTIMIZED,
+        )
+        scheduler = MultiModelScheduler(config)
+        # Manually set stats to override latency: openai becomes faster
+        scheduler._stats["openai/gpt-4o"].avg_latency_seconds = 0.05
+        scheduler._stats["openai/gpt-4o"].total_calls = 1
+        scheduler._stats["openai/gpt-4o"].total_latency_seconds = 0.05
+        key, _ = scheduler._select_provider()
+        assert key == "openai/gpt-4o"
+
+    def test_unknown_strategy_fallback(self):
+        """Unknown strategy should fall back to first provider."""
+        config = SchedulerConfig(
+            models=[
+                ModelConfig(provider="openai", model="gpt-4o", api_key="key1"),
+            ],
+        )
+        scheduler = MultiModelScheduler(config)
+        # Override strategy to unknown value
+        scheduler.config.strategy = "unknown"  # type: ignore[assignment]
+        key, _ = scheduler._select_provider()
+        assert key == "openai/gpt-4o"
+
+
+class TestBaseLLMProvider:
+    """Tests for BaseLLMProvider."""
+
+    def test_is_available_with_key(self):
+        config = LLMConfig(provider="openai", model="gpt-4o", api_key="test-key")
+        provider = OpenAIProvider(config)
+        assert provider.is_available() is True
+
+    def test_is_available_without_key(self):
+        config = LLMConfig(provider="openai", model="gpt-4o")
+        provider = OpenAIProvider(config)
+        assert provider.is_available() is False
+
+    def test_custom_base_url(self):
+        config = LLMConfig(
+            provider="openai", model="gpt-4o",
+            api_key="test-key",
+            base_url="https://custom.api.com/v1",
+        )
+        provider = OpenAIProvider(config)
+        assert provider.config.base_url == "https://custom.api.com/v1"
+
+
+class TestLLMResponseEdgeCases:
+    """Edge cases for LLMResponse."""
+
+    def test_empty_content(self):
+        response = LLMResponse(content="", model="", provider="")
+        assert response.content == ""
+        assert response.total_tokens == 0
+
+    def test_large_token_counts(self):
+        response = LLMResponse(
+            content="test",
+            model="gpt-4o",
+            provider="openai",
+            input_tokens=100000,
+            output_tokens=50000,
+            cost_usd=10.0,
+        )
+        # total_tokens is NOT auto-computed in the dataclass
+        assert response.input_tokens == 100000
+        assert response.output_tokens == 50000
+        assert response.cost_usd == 10.0
+
+
+class TestSchedulerGenerate:
+    """Async tests for MultiModelScheduler.generate."""
+
+    @pytest.mark.asyncio
+    async def test_generate_success(self):
+        from unittest.mock import AsyncMock
+
+        config = SchedulerConfig(
+            models=[
+                ModelConfig(provider="openai", model="gpt-4o", api_key="key1"),
+            ],
+        )
+        scheduler = MultiModelScheduler(config)
+
+        mock_response = LLMResponse(
+            content="hello", model="gpt-4o", provider="openai",
+        )
+        for provider in scheduler._providers.values():
+            provider.generate = AsyncMock(return_value=mock_response)
+
+        response = await scheduler.generate("test")
+        assert response.content == "hello"
+        assert scheduler._stats["openai/gpt-4o"].successful_calls == 1
+
+    @pytest.mark.asyncio
+    async def test_generate_with_messages_success(self):
+        from unittest.mock import AsyncMock
+
+        config = SchedulerConfig(
+            models=[
+                ModelConfig(provider="openai", model="gpt-4o", api_key="key1"),
+            ],
+        )
+        scheduler = MultiModelScheduler(config)
+
+        mock_response = LLMResponse(
+            content="hello", model="gpt-4o", provider="openai",
+        )
+        for provider in scheduler._providers.values():
+            provider.generate_with_messages = AsyncMock(return_value=mock_response)
+
+        response = await scheduler.generate_with_messages(
+            [{"role": "user", "content": "test"}]
+        )
+        assert response.content == "hello"
+
+    @pytest.mark.asyncio
+    async def test_generate_all_providers_fail(self):
+        config = SchedulerConfig(
+            models=[
+                ModelConfig(provider="openai", model="gpt-4o", api_key="key1"),
+            ],
+        )
+        scheduler = MultiModelScheduler(config)
+
+        for provider in scheduler._providers.values():
+            provider.generate = None  # Will cause AttributeError
+
+        with pytest.raises(RuntimeError, match="All providers failed"):
+            await scheduler.generate("test")
+
+    @pytest.mark.asyncio
+    async def test_generate_fallback_disabled(self):
+        config = SchedulerConfig(
+            models=[
+                ModelConfig(provider="openai", model="gpt-4o", api_key="key1"),
+            ],
+            fallback_enabled=False,
+        )
+        scheduler = MultiModelScheduler(config)
+
+        for provider in scheduler._providers.values():
+            provider.generate = None
+
+        # With fallback disabled, the original exception (TypeError) is raised
+        with pytest.raises(TypeError):
+            await scheduler.generate("test")
+
+    @pytest.mark.asyncio
+    async def test_generate_with_messages_all_fail(self):
+        config = SchedulerConfig(
+            models=[
+                ModelConfig(provider="openai", model="gpt-4o", api_key="key1"),
+            ],
+        )
+        scheduler = MultiModelScheduler(config)
+
+        for provider in scheduler._providers.values():
+            provider.generate_with_messages = None
+
+        with pytest.raises(RuntimeError, match="All providers failed"):
+            await scheduler.generate_with_messages(
+                [{"role": "user", "content": "test"}]
+            )

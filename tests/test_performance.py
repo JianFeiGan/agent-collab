@@ -379,7 +379,7 @@ def test_version_startup_time():
     duration = time.monotonic() - start
 
     assert result.returncode == 0
-    assert "3.1.0" in result.stdout
+    assert "3.2.0" in result.stdout
     # --version should be very fast since it doesn't load heavy modules
     assert duration < 3.0, f"Version check took {duration:.2f}s (expected < 3.0s)"
 
